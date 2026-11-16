@@ -26,6 +26,33 @@ Oyundaki 4.800'den fazla metni (menüler, eşyalar, görevler, NPC diyalogları,
 
 ![Kurulum tamamlandı](docs/ekran/sayfa4.png)
 
+## Rehber (ROB RUN Türkçe Wiki)
+
+Sol üstteki **Yama | Rehber** geçişiyle uygulamanın içinden oyun rehberini açabilirsiniz. Yamayı kurmanız gerekmez, internet de gerekmez; veriler uygulamanın içindedir.
+
+![Rehber: eşyalar](docs/ekran/rehber1.png)
+
+| Bölüm | İçerik |
+|---|---|
+| **Eşyalar** (569) | Kategori ve nadirlik, fiyat, kademeye göre tefeci fiyatları, nerede bulunduğu, hangi binalarda çıktığı |
+| **Silahlar** (46) | Hasar, kafaya hasar, atış hızı, DPS, şarjör, menzil, şarjör değiştirme ve nişan alma süreleri |
+| **Larry'nin Ağacı** (172) | 8 dal; her düğümün araştırma ve satın alma bedeli, önce açılması gerekenler, açtıkları |
+| **Takaslar** (11) | Gereken eşyalar ve nakit, nerede yapıldığı, sonuç |
+| **Binalar** (38) | Türü, açıklaması, içinde bulunabilecek eşyalar |
+| **Soygunlar** (7) | Yer, durum, gereken aletler, adım adım yapılışı |
+
+- Eşya adları, Türkçe yamadaki adlarla birebir aynıdır; oyunda ne görüyorsanız Rehber'de de o yazar.
+- Her bölümde arama ve filtreler vardır. Kayıtlar birbirine bağlıdır: bir binadaki eşyaya, bir eşyanın takasına ya da Larry'nin ağacındaki düğümüne tıklayarak geçebilirsiniz.
+- Rehber verisi (`wiki.json`) de çeviri gibi GitHub'dan **imzalı** olarak güncellenir.
+
+Veri, Rob Run: Türkiye Official Server'ın **ROB RUN Türkçe Wiki** projesinden [`tools/wiki-donustur.ps1`](tools/wiki-donustur.ps1) ile üretilir:
+
+```bash
+pwsh tools/wiki-donustur.ps1 -Kaynak <wiki klasörü> -Surum 1.0.1
+```
+
+Betik eşya adlarını yamanın çevirileriyle eşler, terimleri çeviri rehberine uydurur (ör. fence = tefeci) ve simgeleri küçültüp PNG'ye çevirerek `wiki/simgeler/` klasörüne yazar.
+
 ## "ROB RUN Türkçe" kısayolu (başlatıcı)
 
 **Kısayol Oluştur** düğmesi, programın bir kopyasını `%LOCALAPPDATA%\RobRunTurkceYama\uygulama\` klasörüne koyar. Masaüstüne ve Başlat menüsüne de **ROB RUN Türkçe** kısayolunu ekler. Oyunu bu kısayolla açtığınızda program sırasıyla şunları yapar:
@@ -95,8 +122,8 @@ Kendi derlediğiniz exe de resmi sürümlerden güncelleme alır; çünkü imzay
 
 1. `release.json` içindeki `github` alanına deponun adresini yazın (ör. `https://github.com/<sahip>/<depo>`). Yalnızca `https://` ile başlayan bağlantılar kabul edilir.
 2. Program sürümü için `RobRunTurkce.csproj` dosyasındaki `<Version>` değerini, çeviri sürümü için `translations/tr.json` içindeki `_bilgi.surum` değerini artırın.
-3. `powershell -ExecutionPolicy Bypass -File build.ps1` komutunu çalıştırın. Betik `dist/` klasörüne şunları koyar: `RobRunTurkceYama.exe`, `tr.json`, `SHA256SUMS.txt` ve imza dosyası `SHA256SUMS.txt.sig`.
-4. GitHub'da yeni bir release açın ve bu dört dosyayı ekleyin. Programlar "latest release"e bakar.
+3. `powershell -ExecutionPolicy Bypass -File build.ps1` komutunu çalıştırın. Betik `dist/` klasörüne şunları koyar: `RobRunTurkceYama.exe`, `tr.json`, `wiki.json`, `SHA256SUMS.txt` ve imza dosyası `SHA256SUMS.txt.sig`. Rehber verisini güncellediyseniz `wiki/wiki.json` içindeki `_bilgi.surum` değerini de artırın.
+4. GitHub'da yeni bir release açın ve bu beş dosyayı ekleyin. Programlar "latest release"e bakar.
 
 İmza için gereken gizli anahtar varsayılan olarak `%USERPROFILE%\.robrun-turkce-yama\imza-anahtari-GIZLI.xml` konumundadır (`ROBRUN_IMZA_ANAHTARI` ortam değişkeniyle değiştirilebilir). Bu dosya **asla depoya konmaz ve paylaşılmaz**; yedeğini güvenli bir yerde saklayın. Kaybolursa yeni anahtarla imzalanan sürümleri eski programlar kabul etmez; oyuncuların yeni exe'yi elle bir kez indirmesi gerekir.
 
@@ -127,4 +154,4 @@ En güvenli Türkçe, oyunun içine resmi olarak eklenen Türkçedir. ROB RUN, U
 
 ## Lisans
 
-Kaynak kod ve çeviri metinleri [MIT](LICENSE) lisanslıdır. ROB RUN ve özgün metinleri Kefir'e aittir. Bu depo oyun dosyası veya özgün İngilizce metin içermez.
+Kaynak kod, çeviri ve rehber metinleri [MIT](LICENSE) lisanslıdır. ROB RUN, özgün metinleri, eşya adları ve `wiki/simgeler/` klasöründeki oyun içi simgeler Kefir'e aittir. Simgeler yalnızca topluluk rehberinde eşyaları tanıtmak için kullanılır ve MIT lisansının kapsamında değildir. Depo oyun dosyası (paket, exe vb.) içermez.

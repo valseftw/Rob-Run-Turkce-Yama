@@ -90,9 +90,54 @@ namespace RobRunTurkce
             }
             else Go(0, animate: false);
 
+            ModeWiki.Checked += (s, e) => SetMode(true);
+            ModePatch.Checked += (s, e) => SetMode(false);
+
             UpdateButton.Click += (s, e) => ApplyAppUpdate();
             if (autoAction == null && Updater.Enabled)
                 ContentRendered += (s, e) => CheckForUpdates();
+        }
+
+        // ============================================================ Rehber (wiki)
+
+        WikiView wikiView;
+        Wiki wikiData;
+
+        /// <summary>Kenar çubuğundaki Yama / Rehber geçişi. Rehber ilk açılışta yüklenir.</summary>
+        void SetMode(bool wiki)
+        {
+            if (wiki && busy) { ModePatch.IsChecked = true; Toast("Önce kurulumun bitmesini bekle"); return; }
+            if (wiki && wikiView == null)
+            {
+                try
+                {
+                    wikiData = wikiData ?? Wiki.LoadActive();
+                    wikiView = new WikiView(wikiData);
+                    WikiHost.Content = wikiView;
+                    WikiNavHost.Content = wikiView.Nav;
+                }
+                catch (Exception e)
+                {
+                    ModePatch.IsChecked = true;
+                    Alert("Rehber açılamadı", e.Message, "Tamam");
+                    return;
+                }
+            }
+            PageHost.Visibility = FooterBar.Visibility = StepList.Visibility = wiki ? Visibility.Collapsed : Visibility.Visible;
+            WikiHost.Visibility = WikiNavHost.Visibility = wiki ? Visibility.Visible : Visibility.Collapsed;
+            WindowTitle.Text = wiki ? "ROB RUN Rehberi · eşyalar, silahlar, Larry'nin ağacı" : $"ROB RUN Türkçe Yama Yükleyicisi · sürüm {Program.Version}";
+            var el = wiki ? (FrameworkElement)WikiHost : PageHost;
+            el.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220)));
+        }
+
+        /// <summary>Yeni rehber verisi indirildiyse görünümü yeniden kurar.</summary>
+        void ReloadWiki(Wiki fresh)
+        {
+            wikiData = fresh;
+            if (wikiView == null) return;
+            bool showing = WikiHost.Visibility == Visibility.Visible;
+            wikiView = null; WikiHost.Content = null; WikiNavHost.Content = null;
+            if (showing) SetMode(true);
         }
 
         // ============================================================ GitHub güncellemesi
@@ -106,9 +151,12 @@ namespace RobRunTurkce
                 try { info = Updater.Check(8000); } catch { return; } // çevrimdışı/doğrulanamadı: sessizce geç
                 Translations fresh = null;
                 if (info != null && info.TrNewer(tr)) { try { fresh = Updater.UpdateTranslation(info); } catch { } }
+                Wiki freshWiki = null;
+                try { if (info != null && info.WikiNewer(wikiData ?? Wiki.LoadActive())) freshWiki = Updater.UpdateWiki(info); } catch { }
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
                     update = info;
+                    if (freshWiki != null) { ReloadWiki(freshWiki); Toast("Rehber güncellendi · sürüm " + freshWiki.Version); }
                     if (fresh != null && !busy)
                     {
                         tr = fresh;
@@ -759,6 +807,24 @@ namespace RobRunTurkce
             w.Go(3, false); Shot("sayfa4.png");
             w.UpdateTitle.Text = "Yeni sürüm hazır · 1.1.0"; w.UpdateText.Text = "GitHub'dan indirilir; dijital imzası doğrulanmadan kurulmaz.";
             w.UpdateCard.Visibility = Visibility.Visible; w.Go(0, false); Shot("guncelleme.png"); w.UpdateCard.Visibility = Visibility.Collapsed;
+            // Rehber bölümleri
+            w.ModeWiki.IsChecked = true;
+            string[] picks = { "alcohol_13", "m249_m2", "fukurou_tensa", "drill_1", "city_gas_station", "bank-vault" };
+            for (int i = 0; i < 6; i++)
+            {
+                object sel = null;
+                switch (i)
+                {
+                    case 0: w.wikiData.ItemById.TryGetValue(picks[0], out var it); sel = it; break;
+                    case 1: sel = w.wikiData.Weapons.Find(x => x.Id == picks[1]); break;
+                    case 2: w.wikiData.NodeById.TryGetValue(picks[2], out var n); sel = n; break;
+                    case 3: sel = w.wikiData.Barters.Find(x => x.Id == picks[3]); break;
+                    case 4: sel = w.wikiData.Buildings.Find(x => x.Id == picks[4]); break;
+                    case 5: sel = w.wikiData.Robberies.Find(x => x.Id == picks[5]); break;
+                }
+                w.wikiView.Show(i, sel); Shot($"rehber{i + 1}.png");
+            }
+            w.ModePatch.IsChecked = true;
             w.Alert("Türkçe yama kaldırılsın mı?", "Orijinal oyun dosyaları yedekten geri yüklenecek.", "Vazgeç", "Kaldır", () => { }, danger: true); Shot("uyari.png");
             w.Close();
         }

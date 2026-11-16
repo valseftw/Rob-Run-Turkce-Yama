@@ -13,12 +13,13 @@ namespace RobRunTurkce
     /// <summary>Bir GitHub sürümünün imzası doğrulanmış içeriği.</summary>
     public sealed class UpdateInfo
     {
-        public Version App, Tr;                     // SHA256SUMS.txt içindeki (imzalı) sürüm satırları
+        public Version App, Tr, Wiki;               // SHA256SUMS.txt içindeki (imzalı) sürüm satırları
         public readonly Dictionary<string, string> Sums = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<string, string> Urls = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         public string Page;                         // sürüm sayfası (tarayıcıda açmak için)
         public bool AppNewer => App != null && App > Updater.ParseVersion(Program.Version) && Sums.ContainsKey(Updater.ExeAsset) && Urls.ContainsKey(Updater.ExeAsset);
         public bool TrNewer(Translations current) => Tr != null && Tr > Updater.ParseVersion(current.Version) && Sums.ContainsKey(Updater.TrAsset) && Urls.ContainsKey(Updater.TrAsset);
+        public bool WikiNewer(RobRunTurkce.Wiki current) => Wiki != null && Wiki > Updater.ParseVersion(current.Version) && Sums.ContainsKey(Updater.WikiAsset) && Urls.ContainsKey(Updater.WikiAsset);
     }
 
     /// <summary>
@@ -34,6 +35,7 @@ namespace RobRunTurkce
     {
         public const string ExeAsset = "RobRunTurkceYama.exe";
         public const string TrAsset = "tr.json";
+        public const string WikiAsset = "wiki.json";
         public const string SumsAsset = "SHA256SUMS.txt";
         public const string SigAsset = "SHA256SUMS.txt.sig";
         const string UserAgent = "RobRunTurkceYama";
@@ -123,6 +125,7 @@ namespace RobRunTurkce
                 Match m;
                 if ((m = Regex.Match(line, @"^#\s*uygulama\s+(\S+)$")).Success) info.App = ParseVersion(m.Groups[1].Value);
                 else if ((m = Regex.Match(line, @"^#\s*ceviri\s+(\S+)$")).Success) info.Tr = ParseVersion(m.Groups[1].Value);
+                else if ((m = Regex.Match(line, @"^#\s*rehber\s+(\S+)$")).Success) info.Wiki = ParseVersion(m.Groups[1].Value);
                 else if ((m = Regex.Match(line, @"^([0-9a-fA-F]{64})\s+\*?(\S+)$")).Success) info.Sums[m.Groups[2].Value] = m.Groups[1].Value.ToLowerInvariant();
             }
             return info;
@@ -161,12 +164,27 @@ namespace RobRunTurkce
             var text = new UTF8Encoding(false, true).GetString(bytes);
             var t = Translations.Load(text); // biçim hatalıysa burada durur
             if (ParseVersion(t.Version) != info.Tr) throw new InvalidDataException("Çeviri dosyasının sürümü imzalı listedekiyle eşleşmiyor.");
-            Directory.CreateDirectory(Path.GetDirectoryName(CachedTranslation));
-            var tmp = CachedTranslation + ".yeni";
-            File.WriteAllBytes(tmp, bytes);
-            if (File.Exists(CachedTranslation)) File.Delete(CachedTranslation);
-            File.Move(tmp, CachedTranslation);
+            WriteCache(CachedTranslation, bytes);
             return t;
+        }
+
+        /// <summary>Yeni rehber verisini indirir, doğrular ve yerel önbelleğe yazar.</summary>
+        public static Wiki UpdateWiki(UpdateInfo info, int timeoutMs = 20000)
+        {
+            var bytes = Download(info, WikiAsset, timeoutMs);
+            var w = Wiki.Load(new UTF8Encoding(false, true).GetString(bytes));
+            if (ParseVersion(w.Version) != info.Wiki) throw new InvalidDataException("Rehber verisinin sürümü imzalı listedekiyle eşleşmiyor.");
+            WriteCache(Wiki.CachedPath, bytes);
+            return w;
+        }
+
+        static void WriteCache(string path, byte[] bytes)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            var tmp = path + ".yeni";
+            File.WriteAllBytes(tmp, bytes);
+            if (File.Exists(path)) File.Delete(path);
+            File.Move(tmp, path);
         }
 
         // ------------------------------------------------------------------ program güncellemesi

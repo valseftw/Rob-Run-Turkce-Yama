@@ -1,5 +1,5 @@
 # Yükleyiciyi derler ve dist/ klasörüne GitHub sürümüne yüklenecek dosyaları hazırlar:
-#   RobRunTurkceYama.exe, tr.json, SHA256SUMS.txt ve SHA256SUMS.txt.sig (dijital imza)
+#   RobRunTurkceYama.exe, tr.json, wiki.json, SHA256SUMS.txt ve SHA256SUMS.txt.sig (dijital imza)
 # Kullanım:  powershell -ExecutionPolicy Bypass -File build.ps1
 #
 # İmza için GİZLİ anahtar gerekir. Varsayılan yer: %USERPROFILE%\.robrun-turkce-yama\imza-anahtari-GIZLI.xml
@@ -14,14 +14,19 @@ if ($LASTEXITCODE -ne 0) { throw "Derleme başarısız." }
 New-Item -ItemType Directory -Force dist | Out-Null
 Copy-Item src/RobRunTurkce/bin/Release/net48/RobRunTurkceYama.exe dist/ -Force
 Copy-Item translations/tr.json dist/ -Force
+Copy-Item wiki/wiki.json dist/ -Force
 
 $appVer = ([xml](Get-Content src/RobRunTurkce/RobRunTurkce.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
 $trText = [IO.File]::ReadAllText((Resolve-Path translations/tr.json))
 if ($trText -notmatch '"_bilgi"\s*:\s*\{[^}]*"surum"\s*:\s*"([^"]+)"') { throw "tr.json içinde _bilgi.surum bulunamadı." }
 $trVer = $Matches[1]
 
-$lines = @("# uygulama $appVer", "# ceviri $trVer")
-foreach ($f in 'RobRunTurkceYama.exe', 'tr.json') {
+$wikiText = [IO.File]::ReadAllText((Resolve-Path wiki/wiki.json))
+if ($wikiText -notmatch '"_bilgi"\s*:\s*\{[^}]*"surum"\s*:\s*"([^"]+)"') { throw "wiki.json içinde _bilgi.surum bulunamadı." }
+$wikiVer = $Matches[1]
+
+$lines = @("# uygulama $appVer", "# ceviri $trVer", "# rehber $wikiVer")
+foreach ($f in 'RobRunTurkceYama.exe', 'tr.json', 'wiki.json') {
     $h = (Get-FileHash "dist/$f" -Algorithm SHA256).Hash.ToLower()
     $lines += "$h  $f"
 }
@@ -46,4 +51,4 @@ if (Test-Path $keyPath) {
 Write-Host ""
 Get-Content $sumsPath | ForEach-Object { Write-Host $_ }
 Write-Host ""
-Write-Host "GitHub sürümüne yükleyin: dist/RobRunTurkceYama.exe, dist/tr.json, dist/SHA256SUMS.txt, dist/SHA256SUMS.txt.sig"
+Write-Host "GitHub sürümüne yükleyin: dist/RobRunTurkceYama.exe, dist/tr.json, dist/wiki.json, dist/SHA256SUMS.txt, dist/SHA256SUMS.txt.sig"

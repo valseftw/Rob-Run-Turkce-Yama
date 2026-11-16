@@ -206,6 +206,11 @@ namespace RobRunTurkce
                         Say("Yeni çeviri indiriliyor…", "çeviri " + info.Tr);
                         tr = Updater.UpdateTranslation(info);
                     }
+                    if (info != null && info.WikiNewer(Wiki.LoadActive()))
+                    {
+                        Say("Rehber güncelleniyor…", "rehber " + info.Wiki);
+                        try { Updater.UpdateWiki(info); } catch { }
+                    }
                 }
                 catch { /* çevrimdışı ya da doğrulanamadı: mevcut çeviriyle devam */ }
             }

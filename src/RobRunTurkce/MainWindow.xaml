@@ -51,6 +51,14 @@
                     </StackPanel>
                 </StackPanel>
 
+                <!-- üst: Yama / Rehber geçişi -->
+                <Border DockPanel.Dock="Top" Margin="0,26,0,0" CornerRadius="9" Background="#B3303034" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="2">
+                    <UniformGrid Columns="2">
+                        <RadioButton x:Name="ModePatch" Style="{StaticResource Segment}" GroupName="mode" IsChecked="True" Content="Yama"/>
+                        <RadioButton x:Name="ModeWiki" Style="{StaticResource Segment}" GroupName="mode" Content="Rehber"/>
+                    </UniformGrid>
+                </Border>
+
                 <!-- alt: hazırlayan -->
                 <Border DockPanel.Dock="Bottom" CornerRadius="14" Background="#B32C2C2E" BorderBrush="#26FFFFFF" BorderThickness="1" Padding="16,14">
                     <StackPanel>
@@ -79,7 +87,10 @@
                 </Border>
 
                 <!-- orta: adım listesi -->
-                <StackPanel x:Name="StepList" Margin="2,44,0,0"/>
+                <Grid>
+                    <StackPanel x:Name="StepList" Margin="2,30,0,0"/>
+                    <ContentControl x:Name="WikiNavHost" Margin="-6,22,-6,0" Visibility="Collapsed"/>
+                </Grid>
             </DockPanel>
         </Grid>
 
@@ -235,8 +246,11 @@
                 </ScrollViewer>
             </Grid>
 
+            <!-- Rehber (wiki) görünümü: sayfaların ve alt çubuğun yerine geçer -->
+            <ContentControl x:Name="WikiHost" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed"/>
+
             <!-- alt çubuk -->
-            <Border Grid.Row="2" BorderBrush="#2E2E30" BorderThickness="0,1,0,0" Padding="40,16,44,18">
+            <Border x:Name="FooterBar" Grid.Row="2" BorderBrush="#2E2E30" BorderThickness="0,1,0,0" Padding="40,16,44,18">
                 <DockPanel>
                     <StackPanel x:Name="FooterLeft" Orientation="Horizontal" DockPanel.Dock="Left"/>
                     <StackPanel x:Name="FooterRight" Orientation="Horizontal" HorizontalAlignment="Right"/>

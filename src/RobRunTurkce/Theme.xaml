@@ -218,4 +218,100 @@
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="LineHeight" Value="21"/>
         </Style>
+
+        <!-- ===== Rehber (wiki) ===== -->
+        <!-- Liste satırı: simge, başlık, alt satır, sağda değer; sol kenarda nadirlik rengi -->
+        <DataTemplate x:Key="WikiRow">
+            <Grid Height="52">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Border Width="40" Height="40" CornerRadius="9" Background="#26FFFFFF" VerticalAlignment="Center">
+                    <Grid>
+                        <TextBlock Text="{Binding Initial}" FontSize="15" FontWeight="SemiBold" Foreground="#6C6C70" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Image Source="{Binding Icon}" Margin="3" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Grid>
+                </Border>
+                <Rectangle Width="3" Height="22" RadiusX="1.5" RadiusY="1.5" Fill="{Binding Accent}" HorizontalAlignment="Left" Margin="-9,0,0,0" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Margin="12,0,8,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Title}" FontSize="13.5" Foreground="#F5F5F7" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Sub}" FontSize="11.5" Foreground="#98989F" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="{Binding Value}" FontSize="12" Foreground="#98989F" VerticalAlignment="Center"/>
+            </Grid>
+        </DataTemplate>
+
+        <Style x:Key="WikiListItem" TargetType="ListBoxItem">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="12,0,12,0"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="b" CornerRadius="10" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#1AFFFFFF"/></Trigger>
+                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="b" Property="Background" Value="#380A84FF"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Filtre çipi (kategori, dal) -->
+        <Style x:Key="Chip" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="#D1D1D6"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="b" CornerRadius="14" Height="28" Padding="13,0" Background="#2C2C2E" BorderBrush="#3A3A3C" BorderThickness="1">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#3A3A3C"/></Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#0A84FF"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="#0A84FF"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Kenar çubuğundaki Yama / Rehber geçişi (segmented control) -->
+        <Style x:Key="Segment" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="#C7C7CC"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="b" CornerRadius="7" Height="28" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#14FFFFFF"/></Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#636366"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 </ResourceDictionary>

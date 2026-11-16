@@ -9,7 +9,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>RobRunTurkceYama</AssemblyName>
     <RootNamespace>RobRunTurkce</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Product>ROB RUN Türkçe Yama (resmi değildir)</Product>
     <Description>ROB RUN için topluluk yapımı, açık kaynak Türkçe çeviri yükleyicisi ve başlatıcısı. Yalnızca GitHub üzerinden imzalı güncelleme alır.</Description>
     <Copyright>MIT Lisansı - ROB RUN Türkiye topluluğu</Copyright>
@@ -29,6 +29,9 @@
     <EmbeddedResource Include="..\..\translations\tr.json" LogicalName="tr.json" />
     <EmbeddedResource Include="..\..\RISKLER.md" LogicalName="RISKLER.md" />
     <EmbeddedResource Include="..\..\release.json" LogicalName="release.json" />
+    <!-- Rehber: ROB RUN Türkçe Wiki verisi ve simgeleri (tools/wiki-donustur.ps1 ile üretilir) -->
+    <EmbeddedResource Include="..\..\wiki\wiki.json" LogicalName="wiki.json" />
+    <EmbeddedResource Include="..\..\wiki\simgeler\*.png" LogicalName="wiki/%(Filename)%(Extension)" Visible="false" />
     <!-- Güncellemelerin imzasını doğrulayan AÇIK anahtar (gizli anahtar depoda değildir) -->
     <EmbeddedResource Include="..\..\assets\guncelleme-acik-anahtar.xml" LogicalName="guncelleme-acik-anahtar.xml" />
     <!-- Rob Run: Türkiye Official Server görselleri -->

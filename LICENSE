@@ -22,9 +22,10 @@ SOFTWARE.
 
 ---
 
-Bu lisans yalnızca bu depodaki kaynak kodu ve çeviri metinleri için geçerlidir.
-ROB RUN, adı, oyun dosyaları ve özgün (İngilizce) metinleri Kefir'e aittir; bu
-depo bunların hiçbirini içermez ve bunlar üzerinde hak iddia etmez.
+Bu lisans yalnızca bu depodaki kaynak kodu, çeviri metinleri ve rehber metinleri için geçerlidir.
+ROB RUN, adı, oyun dosyaları, özgün (İngilizce) metinleri, eşya adları ve wiki/simgeler
+klasöründeki oyun içi simgeler Kefir'e aittir. Simgeler yalnızca topluluk rehberinde eşyaları
+tanıtmak için kullanılır; bu depo bunlar üzerinde hak iddia etmez ve MIT lisansı bunları kapsamaz.
 
 Üçüncü taraf bileşen: AssetsTools.NET (MIT Lisansı, nesrak1),
 https://github.com/nesrak1/AssetsTools.NET — derlenen exe'nin içine gömülüdür.

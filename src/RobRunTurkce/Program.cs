@@ -142,6 +142,8 @@ namespace RobRunTurkce
                 Console.WriteLine("İmza doğrulandı.");
                 Console.WriteLine($"Program : bu {Version}, son {info.App}{(info.AppNewer ? "  (yeni sürüm var)" : "")}");
                 Console.WriteLine($"Çeviri  : bu {cur.Version}, son {info.Tr}{(info.TrNewer(cur) ? "  (yeni çeviri var)" : "")}");
+                var wk = Wiki.LoadActive();
+                Console.WriteLine($"Rehber  : bu {wk.Version}, son {(info.Wiki?.ToString() ?? "yok")}{(info.WikiNewer(wk) ? "  (yeni rehber var)" : "")}");
                 return 0;
             }
             var tr = Arg(args, "--ceviri") is string trFile ? Translations.LoadFile(trFile) : Translations.LoadActive();
