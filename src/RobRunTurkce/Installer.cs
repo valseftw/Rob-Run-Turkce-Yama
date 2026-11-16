@@ -234,8 +234,11 @@ namespace RobRunTurkce
         }
 
         /// <summary>Bu klasördeki oyun (ya da anti-cheat başlatıcısı) çalışıyor mu? Yol okunamazsa temkinli davranıp "evet" der.</summary>
-        public bool GameRunning()
+        public bool GameRunning() => GameProcesses().Count > 0;
+
+        List<Process> GameProcesses()
         {
+            var list = new List<Process>();
             string dir = Path.GetFullPath(Game).TrimEnd('\\', '/') + "\\";
             foreach (var p in Process.GetProcesses())
             {
@@ -243,10 +246,26 @@ namespace RobRunTurkce
                 try { n = p.ProcessName; } catch { continue; }
                 if (!n.Equals("ROB RUN", StringComparison.OrdinalIgnoreCase) && !n.Equals("start_protected_game", StringComparison.OrdinalIgnoreCase)) continue;
                 var path = ProcessPath(p);
-                if (path == null) return true;
-                if (Path.GetFullPath(path).StartsWith(dir, StringComparison.OrdinalIgnoreCase)) return true;
+                if (path == null || Path.GetFullPath(path).StartsWith(dir, StringComparison.OrdinalIgnoreCase)) list.Add(p);
             }
-            return false;
+            return list;
+        }
+
+        /// <summary>
+        /// Oyunu nazikçe kapatır: penceresine "kapat" isteği gönderir (pencerenin X düğmesi gibi).
+        /// Zorla sonlandırmaz; oyun kapanmazsa false döner. Belleğe ya da anti-cheat'e dokunmaz.
+        /// </summary>
+        public bool CloseGame(int timeoutMs = 20000)
+        {
+            foreach (var p in GameProcesses())
+                try { if (p.MainWindowHandle != IntPtr.Zero) p.CloseMainWindow(); } catch { }
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                if (!GameRunning()) return true;
+                System.Threading.Thread.Sleep(400);
+            }
+            return !GameRunning();
         }
 
         // ------------------------------------------------------------------ yardımcılar

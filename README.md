@@ -30,6 +30,8 @@ Oyundaki 4.800'den fazla metni (menüler, eşyalar, görevler, NPC diyalogları,
 
 Sol üstteki **Yama | Rehber** geçişiyle uygulamanın içinden oyun rehberini açabilirsiniz. Yamayı kurmanız gerekmez, internet de gerekmez; veriler uygulamanın içindedir.
 
+Yama kuruluysa uygulama kurulum adımlarını atlayıp **doğrudan Rehber'le açılır**. Oyun güncellendiyse doğrudan **Yeniden Kur** ekranı gelir. ROB RUN açıksa **Oyunu Kapat / Rehberle Devam Et** diye sorar. "Oyunu Kapat" oyunun penceresine kapanma isteği gönderir, yani X'e basmak gibidir; zorla sonlandırmaz.
+
 ![Rehber: eşyalar](docs/ekran/rehber1.png)
 
 | Bölüm | İçerik |

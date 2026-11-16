@@ -92,10 +92,69 @@ namespace RobRunTurkce
 
             ModeWiki.Checked += (s, e) => SetMode(true);
             ModePatch.Checked += (s, e) => SetMode(false);
+            if (autoAction == null) RouteOnStartup();
 
             UpdateButton.Click += (s, e) => ApplyAppUpdate();
             if (autoAction == null && Updater.Enabled)
                 ContentRendered += (s, e) => CheckForUpdates();
+        }
+
+        // ============================================================ açılış yönlendirmesi ve "oyun açık"
+
+        /// <summary>
+        /// Yama kuruluysa kurulum adımları gösterilmez, doğrudan Rehber açılır (riskler kurulumda zaten kabul edildi).
+        /// Oyun güncellendiyse "Yeniden Kur" ekranı açılır. Oyun açıksa kullanıcıya "Oyunu Kapat / Rehberle Devam Et" sorulur.
+        /// </summary>
+        void RouteOnStartup()
+        {
+            if (game == null) return;
+            var st = SafeStatus();
+            if (st == Installer.PatchStatus.NotInstalled) return; // ilk kurulum: Giriş → Riskler → Kurulum
+            accepted = true;
+            bool running = GameIsRunning();
+            if (st == Installer.PatchStatus.Installed || running) ModeWiki.IsChecked = true;
+            else Go(2, animate: false); // oyun güncellenmiş: tek tıkla "Yeniden Kur"
+            if (running) ContentRendered += (s, e) => AskGameOpen(st);
+        }
+
+        bool GameIsRunning()
+        {
+            try { return game != null && new Installer(game, _ => { }, backupRoot).GameRunning(); }
+            catch { return false; }
+        }
+
+        void AskGameOpen(Installer.PatchStatus st)
+        {
+            string text = st == Installer.PatchStatus.Outdated
+                ? "Oyun güncellenmiş; Türkçenin yeniden uygulanması için ROB RUN'ın kapalı olması gerekiyor. Oyunu kapatıp Türkçeyi yeniden kurabilir ya da şimdilik Rehber'le devam edebilirsin."
+                : "Türkçe yama kurulu. Rehber'i oyun açıkken kullanabilirsin. Yamayı yeniden kurmak ya da kaldırmak istersen önce oyunun kapanması gerekir.";
+            Alert("ROB RUN şu an açık", text + "\n\nOyunu kapatırsan kaydedilmemiş ilerleme kaybolabilir.", "Rehberle Devam Et", "Oyunu Kapat", () => CloseGameFlow(st == Installer.PatchStatus.Outdated), danger: true);
+        }
+
+        /// <summary>Oyuna nazikçe "kapan" der (zorla sonlandırmaz). Kapanınca gerekirse Yeniden Kur ekranına geçer.</summary>
+        void CloseGameFlow(bool thenReinstall)
+        {
+            if (game == null || busy) return;
+            busy = true;
+            Toast("ROB RUN kapatılıyor…");
+            var inst = new Installer(game, _ => { }, backupRoot);
+            new Thread(() =>
+            {
+                bool ok = false;
+                try { ok = inst.CloseGame(); } catch { }
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    busy = false;
+                    if (!ok)
+                    {
+                        Alert("Oyun kapanmadı", "ROB RUN kapatma isteğine yanıt vermedi. Oyunun içinden çıkış yapıp tekrar dene.", "Tamam");
+                        return;
+                    }
+                    Toast("ROB RUN kapatıldı");
+                    if (thenReinstall) { ModePatch.IsChecked = true; Go(2); }
+                    else if (page == 2) { RefreshStatus(); BuildFooter(); }
+                }));
+            }) { IsBackground = true }.Start();
         }
 
         // ============================================================ Rehber (wiki)
@@ -492,6 +551,14 @@ namespace RobRunTurkce
                 case 2:
                     var st = game != null ? SafeStatus() : Installer.PatchStatus.NotInstalled;
                     FooterLeft.Children.Add(Btn("Kapat", "LinkButton", Close, enabled: !busy, leftMargin: 0));
+                    if (!busy && GameIsRunning())
+                    {
+                        // Oyun açıkken kurma/kaldırma yerine: oyunu kapat ya da Rehber'e geç
+                        FooterLeft.Children.Add(Btn("Oyunu Kapat", "DangerButton", () => CloseGameFlow(st != Installer.PatchStatus.NotInstalled), leftMargin: 18));
+                        FooterRight.Children.Add(Btn("Geri", "SecondaryButton", () => Go(accepted ? 1 : 0)));
+                        FooterRight.Children.Add(Btn("Rehber'e Geç", "PrimaryButton", () => ModeWiki.IsChecked = true));
+                        break;
+                    }
                     if (st != Installer.PatchStatus.NotInstalled)
                         FooterLeft.Children.Add(Btn("Yamayı Kaldır", "DangerButton", StartUninstall, enabled: !busy && game != null, leftMargin: 18));
                     FooterRight.Children.Add(Btn("Geri", "SecondaryButton", () => Go(accepted ? 1 : 0), enabled: !busy));
@@ -641,6 +708,12 @@ namespace RobRunTurkce
         {
             if (busy) return;
             if (game == null) { SetPill("Klasör seçilmedi", Orange); return; }
+            if (GameIsRunning())
+            {
+                SetPill("Oyun açık", Orange);
+                InstallSubtitle.Text = "ROB RUN açıkken yama kurulamaz ya da kaldırılamaz. Oyunu kapat (ya da aşağıdaki \"Oyunu Kapat\" düğmesini kullan), sonra devam et.";
+                return;
+            }
             switch (SafeStatus())
             {
                 case Installer.PatchStatus.Installed: SetPill("Türkçe yama kurulu", Green); InstallSubtitle.Text = "Türkçe yama bu oyunda kurulu. İstersen yeniden kurabilir ya da tek tıkla kaldırabilirsin."; break;
@@ -789,6 +862,7 @@ namespace RobRunTurkce
             Directory.CreateDirectory(dir);
             var w = new MainWindow(game, null, backupRoot) { WindowStartupLocation = WindowStartupLocation.Manual, Left = -6000, Top = 0, ShowInTaskbar = false, ShowActivated = false };
             w.Show();
+            w.ModePatch.IsChecked = true; // yama kuruluysa açılış Rehber'e gider; yama sayfaları için geri al
             void Shot(string name)
             {
                 for (int k = 0; k < 40; k++) { DoEvents(); Thread.Sleep(15); }

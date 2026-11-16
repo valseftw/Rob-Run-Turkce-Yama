@@ -183,7 +183,8 @@ namespace RobRunTurkce
             catch { OpenMain(game); return; }
             // Yama hiç kurulmadıysa riskler kabul edilmemiş demektir: kendiliğinden hiçbir şey yapılmaz.
             if (st == Installer.PatchStatus.NotInstalled) { OpenMain(game); return; }
-            if (inst.GameRunning()) { Finish("ROB RUN zaten açık", "Türkçe denetimi oyun kapalıyken yapılır.", launch: false); return; }
+            // Oyun zaten açıksa yamaya dokunulmaz; ana pencere Rehber'le açılır ve "Oyunu Kapat / Rehberle Devam Et" sorar.
+            if (inst.GameRunning()) { OpenMain(game); return; }
 
             // 1) GitHub'dan güncelleme (en fazla birkaç saniye; başarısızlık oyunu engellemez)
             var tr = Translations.LoadActive();
