@@ -117,6 +117,28 @@ $items = foreach ($it in $db.items) {
         elde      = CleanList $it.obtainTr
     }
 }
+# --- veri düzeltmeleri (wiki verisindeki bilinen eksik/hatalar)
+$items = [System.Collections.Generic.List[object]]@($items)
+# 1) Kademe 2 (mor) Şifre Çözücü: oyunda var (decoder_2; oyun simge olarak decoder_1'i kullanır) ama wiki eşya listesinde yok.
+if (-not ($items | Where-Object { $_.id -eq 'decoder_2' })) {
+    $d1 = $items | Where-Object { $_.id -eq 'decoder_1' } | Select-Object -First 1
+    if ($d1) {
+        $items.Add([ordered]@{
+            id = 'decoder_2'; ad = $d1.ad; en = 'Decoder'; kategori = $d1.kategori; nadirlik = 'Epik'; renk = '#e375ff'; simge = $d1.simge
+            fiyat = $null; tefeci = @(); aciklama = $d1.aciklama
+            nerede = @('Lenny takası: 3× Kademe 1 Şifre Çözücü + $10.000', 'Lenny takası: 1× dolu Aksiyon Kamerası (Kademe 1)')
+            ipuclari = @(); elde = @()
+        })
+    }
+}
+# 2) Takas #05 ("3× Kademe 1 + $10.000 → Kademe 2") çıktısı yanlışlıkla decoder_1 yazılmış
+foreach ($b in $db.barters) { if ($b.output.id -eq 'decoder_1' -and $b.output.nameTr -match 'Kademe 2') { $b.output.id = 'decoder_2'; $b.id = 'decoder_2_from_t1' } }
+# 3) Aynı adı taşıyan kademeli eşyalar (ör. üç Şifre Çözücü) ayırt edilsin: "(Kademe N)"
+foreach ($grp in ($items | Group-Object { $_.ad } | Where-Object Count -gt 1)) {
+    if (@($grp.Group | Where-Object { $_.id -notmatch '_(\d+)$' }).Count -eq 0) {
+        foreach ($it in $grp.Group) { $it.ad = $it.ad + ' (Kademe ' + ([regex]::Match($it.id, '_(\d+)$').Groups[1].Value) + ')' }
+    }
+}
 $itemIds = @{}; foreach ($i in $items) { $itemIds[$i.id] = $true }
 
 # --- silahlar
@@ -152,12 +174,13 @@ $branches = foreach ($b in $db.treeBranches) {
 $barters = foreach ($b in $db.barters) {
     $oid = $b.output.id ?? (IdFromIcon $b.output.icon)
     [ordered]@{
-        id = $b.id; ad = (GameName $oid) ?? (CleanName $b.titleTr $b.title); simge = Icon $b.output.icon
+        id = $b.id; ad = ($items | Where-Object { $_.id -eq $oid } | Select-Object -First 1).ad ?? (GameName $oid) ?? (CleanName $b.titleTr $b.title); simge = Icon $b.output.icon
         esya = if ($itemIds.ContainsKey($oid)) { $oid } else { $null }
         npc = Tidy $b.npc; kullanim = Tidy $b.usageTr
         girdiler = @($b.inputs | ForEach-Object {
-            $iid = IdFromIcon $_.icon
-            [ordered]@{ ad = (GameName $iid) ?? (CleanName $_.nameTr $_.name); adet = [long]$_.qty; simge = Icon $_.icon; esya = if ($itemIds.ContainsKey($iid)) { $iid } else { $null } }
+            $full = if ($_.icon) { [IO.Path]::GetFileNameWithoutExtension($_.icon) }
+            $iid = if ($full -and $itemIds.ContainsKey($full)) { $full } else { IdFromIcon $_.icon }
+            [ordered]@{ ad = ($items | Where-Object { $_.id -eq $iid } | Select-Object -First 1).ad ?? (GameName $iid) ?? (CleanName $_.nameTr $_.name); adet = [long]$_.qty; simge = Icon $_.icon; esya = if ($itemIds.ContainsKey($iid)) { $iid } else { $null } }
         })
     }
 }

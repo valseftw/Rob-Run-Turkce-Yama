@@ -48,7 +48,14 @@ Yama kuruluysa uygulama kurulum adımlarını atlayıp **doğrudan Rehber'le aç
 
 ![Rehber: Looty Bay haritası](docs/ekran/harita2.png)
 
+- **Her şey birbirine bağlıdır:** Metinlerde geçen eşya, soygun, bina ve cihaz adları tıklanabilir. Tıklayınca solda bir **önizleme penceresi** açılır; buradan ayrıntıya bakıp Geri ile dönebilir ya da kaydın sayfasına geçebilirsiniz.
+- **Ne işe yarar, nerede kullanılır:** Her eşya sayfası, o eşyanın geçtiği soygunları, takasları, harita noktalarını ve rehber adımlarını listeler. Kademeli eşyalarda (ör. Şifre Çözücü yeşil/mor/altın) diğer kademeler de gösterilir.
+- **Soyguna hazırlık:** Her soygunda gereken eşyalar ve her birinin nasıl elde edildiği listelenir (ör. Matkap ← 1× Aksiyon Kamerası + 2× USB Hackleme Aleti + $50.000).
+- **Ayrı pencere (PiP):** Bir kayıt, hazırlık listesi ya da harita, oyunun üstünde kalan küçük bir pencerede açılabilir. Pencere sabitlenebilir ve saydamlaştırılabilir. Oyunun üstünde görünmesi için oyunda **kenarlıksız pencere** modu seçili olmalıdır.
+- **Tam ekran:** Başlık çubuğundaki düğme ya da **F11**. Pencere kenarından boyutlandırılabilir.
 - Eşya adları, Türkçe yamadaki adlarla birebir aynıdır; oyunda ne görüyorsanız Rehber'de de o yazar.
+
+![Rehber: soyguna hazırlık ve önizleme penceresi](docs/ekran/onizleme.png)
 - Her bölümde arama ve filtreler vardır. Kayıtlar birbirine bağlıdır: bir binadaki eşyaya, bir eşyanın takasına ya da Larry'nin ağacındaki düğümüne tıklayarak geçebilirsiniz.
 - Rehber verisi (`wiki.json`) de çeviri gibi GitHub'dan **imzalı** olarak güncellenir.
 

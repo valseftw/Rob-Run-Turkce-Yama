@@ -61,6 +61,8 @@ namespace RobRunTurkce
             BuildDone();
 
             MinButton.Click += (s, e) => WindowState = WindowState.Minimized;
+            FullButton.Click += (s, e) => ToggleFullScreen();
+            PreviewKeyDown += (s, e) => { if (e.Key == Key.F11) { ToggleFullScreen(); e.Handled = true; } };
             CloseButton.Click += (s, e) => Close();
             if (rel.Discord != null) SidebarDiscord.Click += (s, e) => OpenUrl(rel.Discord);
             else SidebarDiscord.Visibility = Visibility.Collapsed;
@@ -97,6 +99,38 @@ namespace RobRunTurkce
             UpdateButton.Click += (s, e) => ApplyAppUpdate();
             if (autoAction == null && Updater.Enabled)
                 ContentRendered += (s, e) => CheckForUpdates();
+        }
+
+        // ============================================================ tam ekran
+
+        bool fullScreen;
+        Rect normalBounds;
+
+        /// <summary>Pencereyi bulunduğu ekranın tamamına yayar (görev çubuğu dahil); tekrar basınca eski boyutuna döner.</summary>
+        void ToggleFullScreen()
+        {
+            if (!fullScreen)
+            {
+                normalBounds = WindowState == WindowState.Normal ? new Rect(Left, Top, Width, Height) : RestoreBounds;
+                WindowState = WindowState.Normal;
+                var hwnd = new WindowInteropHelper(this).Handle;
+                var screen = System.Windows.Forms.Screen.FromHandle(hwnd).Bounds;
+                var src = PresentationSource.FromVisual(this);
+                var m = src?.CompositionTarget?.TransformFromDevice ?? Matrix.Identity;
+                var tl = m.Transform(new Point(screen.Left, screen.Top));
+                var br = m.Transform(new Point(screen.Right, screen.Bottom));
+                Left = tl.X; Top = tl.Y; Width = br.X - tl.X; Height = br.Y - tl.Y;
+                FullButton.Content = ""; FullButton.ToolTip = "Pencereye dön (F11)";
+                WindowFrame.BorderThickness = new Thickness(0);
+                fullScreen = true;
+            }
+            else
+            {
+                Left = normalBounds.Left; Top = normalBounds.Top; Width = normalBounds.Width; Height = normalBounds.Height;
+                FullButton.Content = ""; FullButton.ToolTip = "Tam ekran (F11)";
+                WindowFrame.BorderThickness = new Thickness(1);
+                fullScreen = false;
+            }
         }
 
         // ============================================================ açılış yönlendirmesi ve "oyun açık"
@@ -910,6 +944,28 @@ namespace RobRunTurkce
                 var cottage = w.wikiData.Map.Pois.Find(p => p.Id == "cottage-no-3");
                 if (cottage != null) { w.wikiView.Show(6, cottage); for (int k = 0; k < 40; k++) { DoEvents(); Thread.Sleep(15); } Shot("harita2.png"); }
                 w.wikiView.ShowItemOnMap("jewelry_pouch_1"); for (int k = 0; k < 30; k++) { DoEvents(); Thread.Sleep(15); } Shot("harita3.png");
+            }
+            // bağlantılar, önizleme, soygun hazırlığı, kademeler, ayrı pencere
+            var vault = w.wikiData.Robberies.Find(r => r.Id == "bank-vault");
+            w.wikiData.ItemById.TryGetValue("drill_1", out var drill);
+            w.wikiData.ItemById.TryGetValue("decoder_2", out var dec2);
+            if (vault != null) { w.wikiView.Show(5, vault); Shot("soygun-hazirlik.png"); }
+            if (drill != null) { w.wikiView.Peek(drill); for (int k = 0; k < 25; k++) { DoEvents(); Thread.Sleep(15); } Shot("onizleme.png"); w.wikiView.ClosePeek(); }
+            if (dec2 != null) { w.wikiView.Show(0, dec2); Shot("sifre-cozucu.png"); }
+            if (w.wikiData.ItemById.TryGetValue("usb_1_cumulative", out var usb)) { w.wikiView.Show(0, usb); for (int k = 0; k < 10; k++) { DoEvents(); Thread.Sleep(15); } w.wikiView.ScrollDetail(420); Shot("kullanim.png"); }
+            if (vault != null)
+            {
+                PipWindow.Open(w.wikiView, vault);
+                var pip = PipWindow.Last;
+                pip.Left = -5000; pip.ShowActivated = false;
+                for (int k = 0; k < 40; k++) { DoEvents(); Thread.Sleep(15); }
+                var pel = (FrameworkElement)pip.Content;
+                var pdpi = VisualTreeHelper.GetDpi(pip);
+                var pb = new RenderTargetBitmap((int)(pel.ActualWidth * pdpi.DpiScaleX), (int)(pel.ActualHeight * pdpi.DpiScaleY), 96 * pdpi.DpiScaleX, 96 * pdpi.DpiScaleY, PixelFormats.Pbgra32);
+                pb.Render(pel);
+                var penc = new PngBitmapEncoder(); penc.Frames.Add(BitmapFrame.Create(pb));
+                using (var f = File.Create(System.IO.Path.Combine(dir, "pip.png"))) penc.Save(f);
+                pip.Close();
             }
             w.ModePatch.IsChecked = true;
             w.Alert("Türkçe yama kaldırılsın mı?", "Orijinal oyun dosyaları yedekten geri yüklenecek.", "Vazgeç", "Kaldır", () => { }, danger: true); Shot("uyari.png");
