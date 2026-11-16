@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- WinExe: oyuncular için pencereli (WPF) arayüz; konsol penceresi açılmaz. -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>RobRunTurkceYama</AssemblyName>
+    <RootNamespace>RobRunTurkce</RootNamespace>
+    <Version>1.0.0</Version>
+    <Product>ROB RUN Türkçe Yama (resmi değildir)</Product>
+    <Description>ROB RUN için topluluk yapımı, açık kaynak Türkçe çeviri yükleyicisi ve başlatıcısı. Yalnızca GitHub üzerinden imzalı güncelleme alır.</Description>
+    <Copyright>MIT Lisansı - ROB RUN Türkiye topluluğu</Copyright>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
+    <PlatformTarget>x64</PlatformTarget>
+    <Deterministic>true</Deterministic>
+    <!-- Hata ayıklama bilgisi gömülmez: exe'ye derleyen kişinin bilgisayarındaki klasör yolları girmesin -->
+    <DebugType>none</DebugType>
+    <PathMap>$(MSBuildProjectDirectory)=src</PathMap>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Bağımlılık DLL'i exe'nin içine gömülür; tek dosya halinde dağıtılır -->
+    <PackageReference Include="AssetsTools.NET" Version="3.0.5" GeneratePathProperty="true" ExcludeAssets="runtime" />
+    <EmbeddedResource Include="$(PkgAssetsTools_NET)\lib\net40\AssetsTools.NET.dll" LogicalName="AssetsTools.NET.dll" Visible="false" />
+    <EmbeddedResource Include="..\..\translations\tr.json" LogicalName="tr.json" />
+    <EmbeddedResource Include="..\..\RISKLER.md" LogicalName="RISKLER.md" />
+    <EmbeddedResource Include="..\..\release.json" LogicalName="release.json" />
+    <!-- Güncellemelerin imzasını doğrulayan AÇIK anahtar (gizli anahtar depoda değildir) -->
+    <EmbeddedResource Include="..\..\assets\guncelleme-acik-anahtar.xml" LogicalName="guncelleme-acik-anahtar.xml" />
+    <!-- Rob Run: Türkiye Official Server görselleri -->
+    <EmbeddedResource Include="..\..\assets\hero.jpg" LogicalName="assets/hero.jpg" />
+    <EmbeddedResource Include="..\..\assets\sidebar.jpg" LogicalName="assets/sidebar.jpg" />
+    <EmbeddedResource Include="..\..\assets\logo.png" LogicalName="assets/logo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,16 @@
+bin/
+obj/
+dist/
+*.user
+.vs/
+# Oyun dosyaları ve çıkarılmış İngilizce metinler depoya girmez
+*.bundle
+kaynak-en*.json
+
+# Güncelleme imzası için GİZLİ anahtar asla depoya girmesin
+*GIZLI*
+*.pem
+
+
+# Başkalarının paketleri / indirilen arşivler
+*.zip
