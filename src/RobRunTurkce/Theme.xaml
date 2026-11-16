@@ -290,6 +290,33 @@
             </Setter>
         </Style>
 
+        <!-- Aç/kapa çipi (harita katmanları) -->
+        <Style x:Key="ChipToggle" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#D1D1D6"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="b" CornerRadius="14" Height="28" Padding="11,0,13,0" Background="#1C1C1E" BorderBrush="#3A3A3C" BorderThickness="1" Opacity="0.75">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#2C2C2E"/></Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#3A3A3C"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="#636366"/>
+                                <Setter TargetName="b" Property="Opacity" Value="1"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Kenar çubuğundaki Yama / Rehber geçişi (segmented control) -->
         <Style x:Key="Segment" TargetType="RadioButton">
             <Setter Property="Foreground" Value="#C7C7CC"/>

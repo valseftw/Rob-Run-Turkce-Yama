@@ -36,12 +36,17 @@ Yama kuruluysa uygulama kurulum adımlarını atlayıp **doğrudan Rehber'le aç
 
 | Bölüm | İçerik |
 |---|---|
-| **Eşyalar** (569) | Kategori ve nadirlik, fiyat, kademeye göre tefeci fiyatları, nerede bulunduğu, hangi binalarda çıktığı |
+| **Başlangıç Rehberi** | Adım adım ilk saatler, para kazanma yöntemleri (zorluk, süre, kazanç), sık yapılan hatalar; adımlardan haritaya ve sevkiyat planına geçiş |
+| **Eşyalar** (569) | Kategori ve nadirlik, fiyat, kademeye göre tefeci fiyatları, nerede bulunduğu, hangi binalarda çıktığı, **haritada göster** |
+| **Looty Bay Haritası** | 77 bina ve önemli nokta, 927 arama noktası (kasa, dolap, vitrin, şarj noktası…). Yakınlaştırma/kaydırma, katmanlar, arama. Binalarda kilitli odalar ve içindekiler, cihaz şarj noktaları, özel görevler |
+| **Larry'nin Sevkiyatları** (172) | 8 dal; araştırma ve satın alma bedelleri, açılma sırası. **Planlayıcı:** düğümleri gerekenleriyle birlikte plana ekler, toplam bedeli hesaplar; hazır başlangıç paketi |
 | **Silahlar** (46) | Hasar, kafaya hasar, atış hızı, DPS, şarjör, menzil, şarjör değiştirme ve nişan alma süreleri |
-| **Larry'nin Ağacı** (172) | 8 dal; her düğümün araştırma ve satın alma bedeli, önce açılması gerekenler, açtıkları |
+| **Birikimli Cihazlar** (7) | Kamera, USB, tablet…: kaç puanda dolduğu, nasıl doldurulduğu, dolunca ne işe yaradığı; şarj noktalarını haritada gösterme |
 | **Takaslar** (11) | Gereken eşyalar ve nakit, nerede yapıldığı, sonuç |
 | **Binalar** (38) | Türü, açıklaması, içinde bulunabilecek eşyalar |
 | **Soygunlar** (7) | Yer, durum, gereken aletler, adım adım yapılışı |
+
+![Rehber: Looty Bay haritası](docs/ekran/harita2.png)
 
 - Eşya adları, Türkçe yamadaki adlarla birebir aynıdır; oyunda ne görüyorsanız Rehber'de de o yazar.
 - Her bölümde arama ve filtreler vardır. Kayıtlar birbirine bağlıdır: bir binadaki eşyaya, bir eşyanın takasına ya da Larry'nin ağacındaki düğümüne tıklayarak geçebilirsiniz.
@@ -53,7 +58,11 @@ Veri, Rob Run: Türkiye Official Server'ın **ROB RUN Türkçe Wiki** projesinde
 pwsh tools/wiki-donustur.ps1 -Kaynak <wiki klasörü> -Surum 1.0.1
 ```
 
-Betik eşya adlarını yamanın çevirileriyle eşler, terimleri çeviri rehberine uydurur (ör. fence = tefeci) ve simgeleri küçültüp PNG'ye çevirerek `wiki/simgeler/` klasörüne yazar.
+Betik şunları yapar:
+- `data.js`'teki eşya adlarını yamanın çevirileriyle eşler ve terimleri çeviri rehberine uydurur (ör. fence = tefeci).
+- `map_data_tr.js`'ten Looty Bay haritasını alır.
+- `app.js`'teki rehber içeriklerini [`tools/wiki-rehber-cikar.mjs`](tools/wiki-rehber-cikar.mjs) ile çıkarır. Bunun için Node.js gerekir. Yalnızca veri değişmezleri, izole bir bağlamda değerlendirilir; sitenin kodu çalıştırılmaz.
+- Simgeleri küçültüp PNG'ye çevirerek `wiki/simgeler/` klasörüne yazar. Yalnızca wiki'nin kendi `icons/` klasörü ve şehir haritası kullanılır.
 
 ## "ROB RUN Türkçe" kısayolu (başlatıcı)
 

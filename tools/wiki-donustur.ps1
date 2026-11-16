@@ -32,7 +32,7 @@ function GameDesc($id) { $v = $game["$($id)_description"]; if ($v) { return (Str
 function StripTags($s) { return ($s -replace '<[^<>]+>', '').Trim() }
 
 # --- metin temizliği
-$emoji = '[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2190-\u21FF\u2300-\u23FF\u2460-\u24FF\u25A0-\u27BF\u2B00-\u2BFF\uFE0F\u200D]'
+$emoji = '[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2300-\u23FF\u2460-\u24FF\u25A0-\u27BF\u2B00-\u2BFF\uFE0F\u200D]'
 function Tidy([string]$s) {
     if ([string]::IsNullOrWhiteSpace($s)) { return $null }
     $s = [regex]::Replace($s, $emoji, '')
@@ -71,6 +71,8 @@ $icons = @{}
 function Icon([string]$url, [int]$max = 96, [string]$name = $null) {
     if (-not $url) { return $null }
     $rel = $url.TrimStart('/').Split('?')[0]
+    # Yalnızca wiki'nin kendi icons/ klasörü kullanılır (planner/ ve map/ görselleri robrunwiki kaynaklı)
+    if (-not $rel.StartsWith('icons/')) { return $null }
     $src = Join-Path $Kaynak $rel
     if (-not (Test-Path $src)) { return $null }
     if (-not $name) { $name = [IO.Path]::GetFileNameWithoutExtension($rel) }
@@ -87,7 +89,12 @@ function Icon([string]$url, [int]$max = 96, [string]$name = $null) {
     return $name
 }
 # Ağaç düğümleri için önce eşya simgesini (icons/<id>.png) dener
-function NodeIcon($n) { if (Test-Path (Join-Path $Kaynak "icons/$($n.id).png")) { Icon "icons/$($n.id).png" } else { Icon $n.iconUrl } }
+function NodeIcon($n) {
+    # Önce eşyanın kendi simgesi, sonra aynı ailenin ilk kademesi (backpack_2 → backpack_1, dp9_m2 → dp9_m1)
+    $cands = @($n.id, ($n.id -replace '_(\d+)(_cumulative)?$', '_1$2'), ($n.id -replace '_m\d+$', '_m1'))
+    foreach ($c in $cands | Select-Object -Unique) { if (Test-Path (Join-Path $Kaynak "icons/$c.png")) { return (Icon "icons/$c.png") } }
+    return $null
+}
 function IdFromIcon([string]$url) { if ($url) { ([IO.Path]::GetFileNameWithoutExtension($url)) -replace '_cumulative$', '' } }
 
 $money = { param($v) if ($null -eq $v) { $null } else { [long]$v } }
@@ -173,9 +180,81 @@ $robberies = foreach ($r in $db.robberies) {
     }
 }
 
+# --- Looty Bay haritası (wiki'nin kendi map_data_tr.js verisi; yalnızca şehir haritası)
+$harita = $null
+$mapJs = Join-Path $Kaynak 'map_data_tr.js'
+if (Test-Path $mapJs) {
+    $mt = [IO.File]::ReadAllText($mapJs)
+    $city = ($mt.Substring($mt.IndexOf('{')).TrimEnd().TrimEnd(';') | ConvertFrom-Json -AsHashtable).city
+    $bg = Join-Path $Kaynak ($city.bgUrl.TrimStart('/'))
+    Copy-Item $bg (Join-Path $iconDir 'harita_sehir.png') -Force
+    function LootRef($x) { if ($x.id) { [ordered]@{ id = $x.id; ad = (GameName $x.id) ?? (CleanName $x.nameTr $null); simge = Icon "icons/$($x.id).png"; esya = if ($itemIds.ContainsKey($x.id)) { $x.id } else { $null } } } }
+    $kindGroup = @{}; foreach ($g in $city.poiGroups) { foreach ($k in $g.kinds) { $kindGroup[$k.kind] = $g.key } }
+    $harita = [ordered]@{
+        gorsel = 'harita_sehir.png'; genislik = $city.width; yukseklik = $city.height
+        bolgeler = @($city.districts | ForEach-Object { [ordered]@{ ad = $_.nameTr; x = $_.px; y = $_.py } })
+        gruplar = @($city.poiGroups | ForEach-Object { [ordered]@{ id = $_.key; ad = Tidy $_.labelTr; turler = @($_.kinds | ForEach-Object { [ordered]@{ id = $_.kind; ad = (DropEnglish $_.labelTr) } }) } })
+        katmanlar = @($city.objectGroups | ForEach-Object { $_.layers } | ForEach-Object { [ordered]@{ id = $_.cls; ad = Tidy $_.labelTr; renk = $_.color } })
+        noktalar = @($city.pois | ForEach-Object {
+            $poi = $_
+            [ordered]@{
+                id = $poi.id; tur = $poi.kind; grup = $kindGroup[$poi.kind]; turAd = DropEnglish $poi.kindTr
+                ad = Tidy $poi.nameTr; en = $poi.nameEn; aciklama = Tidy $poi.descTr; ozel = Tidy $poi.specialJobTr
+                x = $poi.px; y = $poi.py; bolge = $poi.district
+                ganimet = @($poi.loot | ForEach-Object { LootRef $_ })
+                sarj = @($poi.refills | ForEach-Object { $r = LootRef $_; $r.puan = $_.points; $r })
+                anahtarlar = @($poi.keys | ForEach-Object {
+                    [ordered]@{
+                        ad = Tidy $_.nameTr; acar = Tidy $_.opensTr; kasa = $_.safes; dolap = $_.cabinets; kutu = $_.boxes; bilgisayar = $_.computers
+                        matkap = if ($_.miniDrill) { $r = LootRef $_.miniDrill; $r.adet = $_.miniDrill.count; $r } else { $null }
+                        usb = if ($_.usb) { $r = LootRef $_.usb; $r.adet = $_.usb.count; $r } else { $null }
+                        icerik = @($_.inside | ForEach-Object { LootRef $_ })
+                    }
+                })
+                gorevler = @($poi.activities | ForEach-Object {
+                    [ordered]@{ ad = Tidy $_.titleTr; gerek = @($_.need | ForEach-Object { LootRef $_ }); sonuc = (LootRef $_.get); adimlar = @($_.stepsTr | ForEach-Object { Tidy $_ }); not = Tidy $_.noteTr }
+                })
+            }
+        })
+        nesneler = @($city.objects | ForEach-Object {
+            $loot = @($_.loot | ForEach-Object { [ordered]@{ id = $_.id; min = $_.min; max = $_.max } })
+            # "Car Parts · Arama Noktası" -> oyun içi Türkçe ad
+            $name = $_.nameTr
+            if ($loot.Count -eq 1 -and (GameName $loot[0].id)) { $name = (GameName $loot[0].id) + ' · ' + (($name -split ' · ', 2)[1] ?? 'Arama Noktası') }
+            [ordered]@{ s = $_['class']; x = [Math]::Round($_.px, 1); y = [Math]::Round($_.py, 1); ad = Tidy $name; bina = (Tidy $_.buildingTr); bolge = Tidy $_.regionTr; g = $loot }
+        })
+    }
+    foreach ($o in $harita.nesneler) { foreach ($l in $o.g) { if ($l.id) { [void](Icon "icons/$($l.id).png") } } }
+}
+
+# --- rehberler (wiki'nin app.js içindeki başlangıç / birikimli rehber içerikleri)
+$rehber = $null
+$appJs = Join-Path $Kaynak 'app.js'
+if ((Test-Path $appJs) -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    $tmp = [IO.Path]::GetTempFileName()
+    node (Join-Path $PSScriptRoot 'wiki-rehber-cikar.mjs') $appJs $tmp | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Rehber içerikleri çıkarılamadı.' }
+    $g = [IO.File]::ReadAllText($tmp) | ConvertFrom-Json -AsHashtable; Remove-Item $tmp
+    function Act($x) { if ($x.actionType -in 'poi_kind', 'starter_tree') { [ordered]@{ tur = $x.actionType; hedef = $x.actionTarget; etiket = (Tidy ($x.actionLabel -replace '\s*→\s*$', '')) } } }
+    $rehber = [ordered]@{
+        adimlar = @($g.baslangicAdimlari | ForEach-Object { [ordered]@{ no = $_.step; rozet = Tidy $_.badge; baslik = Tidy $_.title; metin = Tidy $_.desc; maddeler = @($_.points | ForEach-Object { Tidy $_ }); ipuclari = @($_.tips | ForEach-Object { Tidy $_ }); eylem = (Act $_) } })
+        para = @($g.paraYontemleri | ForEach-Object { [ordered]@{ sira = Tidy $_.rank; baslik = Tidy $_.title; zorluk = $_.difficulty; sure = $_.time; kazanc = $_.payout; gerekenler = Tidy $_.requirements; nasil = Tidy $_.howTo; simge = Icon "icons/$($_.itemId).png" } })
+        hatalar = @($g.hatalar | ForEach-Object { [ordered]@{ no = $_.num; baslik = Tidy $_.title; metin = Tidy $_.desc } })
+        cihazlar = @($g.birikimliCihazlar | ForEach-Object {
+            [ordered]@{
+                id = $_.id; ad = Tidy $_.titleTr; rozet = Tidy $_.badgeTr; renk = $_.rarityColor; puan = $_.pointsRequired
+                arastirma = $_.researchCost; fiyat = $_.buyCost; onsart = Tidy $_.prereqTr; doldurma = Tidy $_.howToFillTr; dolunca = Tidy $_.whenFullTr
+                takas = @($_.barterUse | ForEach-Object { Tidy ($_ -replace '➔', '→') }); simge = Icon "icons/$($_.id).png"
+                esya = if ($itemIds.ContainsKey($_.id)) { $_.id } else { $null }
+            }
+        })
+        baslangicPaketi = @($g.baslangicPaketi)
+    }
+}
 $out = [ordered]@{
     _bilgi = [ordered]@{ surum = $Surum; oyun = 'ROB RUN'; oyunSurumu = ($db.meta.version -replace '\s*\(.*\)$', ''); kaynak = 'ROB RUN Türkçe Wiki (Rob Run: Türkiye Official Server)' }
     esyalar = @($items); silahlar = @($weapons); agac = @($branches); takaslar = @($barters); binalar = @($buildings); soygunlar = @($robberies)
+    harita = $harita; rehberler = $rehber
 }
 $json = $out | ConvertTo-Json -Depth 8 -Compress
 [IO.File]::WriteAllText((Join-Path $outDir 'wiki.json'), $json, [Text.UTF8Encoding]::new($false))

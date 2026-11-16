@@ -898,6 +898,19 @@ namespace RobRunTurkce
                 }
                 w.wikiView.Show(i, sel); Shot($"rehber{i + 1}.png");
             }
+            if (w.wikiData.Guides != null)
+            {
+                w.wikiView.Show(7); Shot("rehber-baslangic.png");
+                w.wikiView.Show(8); Shot("rehber-cihazlar.png");
+                w.wikiView.PlanStarterPack(); Shot("rehber-planlayici.png");
+            }
+            if (w.wikiData.Map != null)
+            {
+                w.wikiView.Show(6); for (int k = 0; k < 30; k++) { DoEvents(); Thread.Sleep(15); } Shot("harita1.png");
+                var cottage = w.wikiData.Map.Pois.Find(p => p.Id == "cottage-no-3");
+                if (cottage != null) { w.wikiView.Show(6, cottage); for (int k = 0; k < 40; k++) { DoEvents(); Thread.Sleep(15); } Shot("harita2.png"); }
+                w.wikiView.ShowItemOnMap("jewelry_pouch_1"); for (int k = 0; k < 30; k++) { DoEvents(); Thread.Sleep(15); } Shot("harita3.png");
+            }
             w.ModePatch.IsChecked = true;
             w.Alert("Türkçe yama kaldırılsın mı?", "Orijinal oyun dosyaları yedekten geri yüklenecek.", "Vazgeç", "Kaldır", () => { }, danger: true); Shot("uyari.png");
             w.Close();
