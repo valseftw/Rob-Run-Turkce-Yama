@@ -36,6 +36,7 @@ Yama kuruluysa uygulama kurulum adımlarını atlayıp **doğrudan Rehber'le aç
 
 | Bölüm | İçerik |
 |---|---|
+| **Yerleşim ve Üs** | Arsa nasıl alınır, ev nasıl kurulup geliştirilir, para aklama, üretim tezgâhları, kaçak mal paketleme, garaj, üs savunması ve baskın, yerleşim sahipliği ve vergi, klanlar ve Gölge Vali. Metinler oyunun kendi açıklamalarından; bedeller Larry'nin sevkiyatlarından |
 | **Başlangıç Rehberi** | Adım adım ilk saatler, para kazanma yöntemleri (zorluk, süre, kazanç), sık yapılan hatalar; adımlardan haritaya ve sevkiyat planına geçiş |
 | **Eşyalar** (569) | Kategori ve nadirlik, fiyat, kademeye göre tefeci fiyatları, nerede bulunduğu, hangi binalarda çıktığı, **haritada göster** |
 | **Looty Bay Haritası** | 77 bina ve önemli nokta, 927 arama noktası (kasa, dolap, vitrin, şarj noktası…). Yakınlaştırma/kaydırma, katmanlar, arama. Binalarda kilitli odalar ve içindekiler, cihaz şarj noktaları, özel görevler |

@@ -76,15 +76,15 @@ namespace RobRunTurkce
         static readonly FontFamily Display = new FontFamily("Segoe UI Variable Display, Segoe UI");
         static readonly Brush Label = B("#F5F5F7"), Secondary = B("#98989F"), Surface = B("#2C2C2E"), Sep = B("#38383A"), Blue = B("#0A84FF");
 
-        const int SecItems = 0, SecWeapons = 1, SecTree = 2, SecBarters = 3, SecBuildings = 4, SecRobberies = 5, SecMap = 6, SecGuide = 7, SecDevices = 8;
+        const int SecItems = 0, SecWeapons = 1, SecTree = 2, SecBarters = 3, SecBuildings = 4, SecRobberies = 5, SecMap = 6, SecGuide = 7, SecDevices = 8, SecBase = 9;
         static readonly (string name, string glyph, string tint)[] Sections =
         {
             ("Eşyalar", "", "#0A84FF"), ("Silahlar", "", "#FF453A"), ("Larry'nin Sevkiyatları", "", "#30D158"),
             ("Takaslar", "", "#FF9F0A"), ("Binalar", "", "#5E5CE6"), ("Soygunlar", "", "#BF5AF2"),
-            ("Looty Bay Haritası", "", "#64D2FF"), ("Başlangıç Rehberi", "", "#FF375F"), ("Birikimli Cihazlar", "", "#FFB340"),
+            ("Looty Bay Haritası", "", "#64D2FF"), ("Başlangıç Rehberi", "", "#FF375F"), ("Birikimli Cihazlar", "", "#FFB340"), ("Yerleşim ve Üs", "\uE81D", "#AC8E68"),
         };
         /// <summary>Kenar çubuğundaki sıra.</summary>
-        static readonly int[] NavOrder = { SecGuide, SecItems, SecMap, SecTree, SecWeapons, SecDevices, SecBarters, SecBuildings, SecRobberies };
+        static readonly int[] NavOrder = { SecGuide, SecBase, SecItems, SecMap, SecTree, SecWeapons, SecDevices, SecBarters, SecBuildings, SecRobberies };
 
         public WikiView(Wiki wiki)
         {
@@ -167,7 +167,7 @@ namespace RobRunTurkce
             Show(w.Guides != null ? SecGuide : SecItems);
         }
 
-        bool Available(int sec) => sec == SecMap ? w.Map != null : sec == SecGuide || sec == SecDevices ? w.Guides != null : true;
+        bool Available(int sec) => sec == SecMap ? w.Map != null : sec == SecBase ? (w.Guides?.Base.Count ?? 0) > 0 : sec == SecGuide || sec == SecDevices ? w.Guides != null : true;
 
         // ============================================================ kenar çubuğu bölüm listesi
 
@@ -184,6 +184,7 @@ namespace RobRunTurkce
                     case SecBuildings: return w.Buildings.Count;
                     case SecRobberies: return w.Robberies.Count;
                     case SecMap: return w.Map?.Pois.Count ?? 0;
+                    case SecBase: return w.Guides?.Base.Count ?? 0;
                     case SecGuide: return w.Guides == null ? 0 : w.Guides.Steps.Count + w.Guides.Money.Count + w.Guides.Mistakes.Count;
                     default: return w.Guides?.Devices.Count ?? 0;
                 }
@@ -361,6 +362,12 @@ namespace RobRunTurkce
                         .Concat(g.Money.Select(m => new WRow { Title = m.Title, Sub = m.Rank, Value = m.Payout, IconName = m.Icon, Tag = new GuideItem { Kind = "Para kazanma", Value = m }, Accent = B("#30D158"), Search = Lower(m.Title, m.Rank, m.How) }))
                         .Concat(g.Mistakes.Select(m => new WRow { Title = m.title, Sub = "Sık yapılan hata " + m.no, Tag = new GuideItem { Kind = "Sık hatalar", Value = m }, Accent = B("#FF9F0A"), Search = Lower(m.title, m.text) }))
                         .ToList();
+                case SecBase:
+                    return w.Guides.Base.Select(a => new WRow
+                    {
+                        Title = a.Title, Sub = a.Badge, IconName = a.Related.Select(id => w.ItemById.TryGetValue(id, out var it) ? it.Icon : w.NodeById.TryGetValue(id, out var n) ? n.Icon : null).FirstOrDefault(x => x != null),
+                        Tag = a, Accent = B("#AC8E68"), Search = Lower(new[] { a.Title, a.Badge }.Concat(a.Paras).Concat(a.Points).ToArray()),
+                    }).ToList();
                 default:
                     return w.Guides.Devices.Select(d => new WRow
                     {
@@ -492,6 +499,7 @@ namespace RobRunTurkce
                     case WPoi p: PoiDetail(sp, p); break;
                     case WObj o: ObjDetail(sp, o); break;
                     case WDevice d: DeviceDetail(sp, d); break;
+                    case WArticle a: ArticleDetail(sp, a); break;
                     default: GuideDetail(sp, building); break;
                 }
             }
@@ -521,6 +529,7 @@ namespace RobRunTurkce
                 case WObj _: return "HARİTA · ARAMA NOKTASI";
                 case WDevice _: return "BİRİKİMLİ CİHAZ";
                 case WMoney _: return "PARA KAZANMA";
+                case WArticle _: return "YERLEŞİM VE ÜS";
                 default: return "BAŞLANGIÇ REHBERİ";
             }
         }
@@ -540,6 +549,7 @@ namespace RobRunTurkce
                 case WDevice d: return d.Name;
                 case WStep s: return s.Title;
                 case WMoney m: return m.Title;
+                case WArticle a: return a.Title;
                 case ValueTuple<string, string, string> t: return t.Item2;
                 default: return "Rehber";
             }
@@ -612,6 +622,7 @@ namespace RobRunTurkce
                 case WPoi _: case WObj _: Show(SecMap); mapView.ClearFilters(); mapView.Reveal(o); break;
                 case WDevice _: Show(SecDevices, o); break;
                 case WStep _: case WMoney _: Show(SecGuide, o); break;
+                case WArticle _: Show(SecBase, o); break;
                 default: Show(SecGuide); break;
             }
         }
@@ -1069,7 +1080,7 @@ namespace RobRunTurkce
             Para(sp, r.Summary, 18);
             PrepList(sp, r);
             if (r.Place != null) { Header(sp, "Yer"); Card(sp, new[] { ((string)null, r.Place, (string)null, (Action)null) }); }
-            if (r.Tools.Count > 0) { Header(sp, "Gerekli aletler"); Card(sp, r.Tools.Select(t => ((string)null, t, (string)null, (Action)null))); }
+            if (r.Tools.Count > 0) { Header(sp, "Gerekli aletler"); Card(sp, r.Tools.Select(t => (FirstIcon(t), t, (string)null, (Action)null))); }
             if (r.Steps.Count > 0) { Header(sp, "Adımlar"); Card(sp, r.Steps.Select(t => ((string)null, t, (string)null, (Action)null)), numbered: true); }
         }
 
@@ -1077,6 +1088,27 @@ namespace RobRunTurkce
 
         string InputsText(WBarter b) => string.Join(" + ", b.Inputs.Select(x => x.ItemId == "cash_1" ? Wiki.Money(x.Qty) : x.Qty + "× " + x.Name));
 
+        /// <summary>Metinde geçen ilk tanınan kaydın simgesi (yoksa null).</summary>
+        string FirstIcon(string text) => Links.Find(text).Select(m => IconOf(m.target)).FirstOrDefault(i => i != null);
+
+        /// <summary>"Maymuncuk, Kamera, USB" gibi gereken listesini, her biri tıklanabilir satırlara böler.</summary>
+        void NeedsCard(StackPanel sp, string text)
+        {
+            var rows = new List<(string, string, string, Action)>();
+            foreach (var raw in System.Text.RegularExpressions.Regex.Split(text, @"\s*[,+]\s*|\s+ve\s+"))
+            {
+                var token = raw.Trim();
+                if (token.Length == 0) continue;
+                var hit = Links.Find(token).FirstOrDefault();
+                if (hit.target != null)
+                {
+                    var title = TitleOf(hit.target);
+                    rows.Add((IconOf(hit.target), token, string.Equals(title, token, StringComparison.OrdinalIgnoreCase) ? null : title, Ref(hit.target)));
+                }
+                else rows.Add((null, token, null, null));
+            }
+            Card(sp, rows);
+        }
         string IconOf(object o)
         {
             switch (o)
@@ -1129,6 +1161,28 @@ namespace RobRunTurkce
             if (mainContext) Buttons(sp, ("Hazırlık listesini ayrı pencerede aç", false, () => PipWindow.Open(this, r)));
         }
 
+        void ArticleDetail(StackPanel sp, WArticle a)
+        {
+            var firstIcon = a.Related.Select(id => w.ItemById.TryGetValue(id, out var it) ? it.Icon : w.NodeById.TryGetValue(id, out var n) ? n.Icon : null).FirstOrDefault(x => x != null);
+            Hero(sp, firstIcon, a.Title, null, a.Badge, "#AC8E68", "Yerleşim ve Üs", "\uE81D", firstIcon == null ? "#AC8E68" : null);
+            foreach (var p in a.Paras) Para(sp, p, 14);
+            if (a.Points.Count > 0) { Header(sp, "Özetle"); Card(sp, a.Points.Select(p => ((string)null, p, (string)null, (Action)null))); }
+            if (a.Costs.Count > 0)
+            {
+                Header(sp, "Bedeller (Larry'nin sevkiyatları)");
+                Card(sp, a.Costs.Select(c =>
+                {
+                    w.NodeById.TryGetValue(c.id, out var n);
+                    var val = (c.research > 0 ? "Araştırma " + Wiki.Money(c.research) : "Araştırma yok") + (c.price > 0 ? " · Alış " + Wiki.Money(c.price) : "");
+                    return (n?.Icon, c.name + "\n" + val, (string)null, Ref((object)n ?? (w.ItemById.TryGetValue(c.id, out var ci) ? ci : null)));
+                }));
+            }
+            var rel = a.Related.Select(id => w.ItemById.TryGetValue(id, out var it) ? (object)it : w.NodeById.TryGetValue(id, out var n) ? n : null).Where(o => o != null).ToList();
+            if (rel.Count > 0) { Header(sp, "İlgili"); Card(sp, rel.Select(o => (IconOf(o), TitleOf(o), KindLabel(o).ToLower(Tr), Ref(o)))); }
+            var branch = w.Branches.FirstOrDefault(b => b.Id == a.Branch);
+            if (branch != null && mainContext)
+                Buttons(sp, ($"Larry'de \"{branch.Name}\" dalını aç", false, () => Show(SecTree, branch.Nodes.OrderBy(n => n.Stage).FirstOrDefault())));
+        }
         // ------------------------------------------------------------------ rehberler
 
         void GuideDetail(StackPanel sp, object v)
@@ -1154,7 +1208,7 @@ namespace RobRunTurkce
                 case WMoney m:
                     Hero(sp, m.Icon, m.Title, null, m.Rank, "#30D158", "Para kazanma");
                     Tiles(sp, new[] { ("Zorluk", m.Difficulty), ("Süre", m.Time), ("Kazanç", m.Payout) }, 3);
-                    if (m.Needs != null) { Header(sp, "Gerekenler"); Card(sp, new[] { ((string)null, m.Needs, (string)null, (Action)null) }); }
+                    if (m.Needs != null) { Header(sp, "Gerekenler"); NeedsCard(sp, m.Needs); }
                     if (m.How != null) { Header(sp, "Nasıl yapılır"); Para(sp, m.How, 0); }
                     break;
                 case ValueTuple<string, string, string> mk:

@@ -180,6 +180,12 @@ namespace RobRunTurkce
                     Prereq = S(s, "onsart"), HowToFill = S(s, "doldurma"), WhenFull = S(s, "dolunca"), Barters = Strs(s, "takas"), Icon = S(s, "simge"), ItemId = S(s, "esya"),
                 });
             r.StarterPack = Strs(g, "baslangicPaketi");
+            foreach (var s in Objs(g, "yerlesim"))
+                r.Base.Add(new WArticle
+                {
+                    Title = S(s, "baslik"), Badge = S(s, "rozet"), Paras = Strs(s, "paragraflar"), Points = Strs(s, "maddeler"), Related = Strs(s, "ilgili"), Branch = S(s, "dal"),
+                    Costs = Objs(s, "maliyet").Select(c => (S(c, "id"), S(c, "ad"), L(c, "arastirma"), L(c, "fiyat"))).ToList(),
+                });
             return r;
         }
 
@@ -268,6 +274,14 @@ namespace RobRunTurkce
         public readonly List<(string no, string title, string text)> Mistakes = new List<(string, string, string)>();
         public readonly List<WDevice> Devices = new List<WDevice>();
         public List<string> StarterPack = new List<string>();
+        public readonly List<WArticle> Base = new List<WArticle>(); // Yerleşim ve Üs yazıları
+    }
+    /// <summary>Yerleşim ve Üs rehberindeki bir yazı: oyunun kendi açıklamaları, özet maddeler, bedeller, ilgili kayıtlar.</summary>
+    public sealed class WArticle
+    {
+        public string Title, Badge, Branch;
+        public List<string> Paras = new List<string>(), Points = new List<string>(), Related = new List<string>();
+        public List<(string id, string name, long? research, long? price)> Costs = new List<(string, string, long?, long?)>();
     }
     public sealed class WStep { public string No, Badge, Title, Text, ActionType, ActionTarget, ActionLabel; public List<string> Points = new List<string>(), Tips = new List<string>(); }
     public sealed class WMoney { public string Rank, Title, Difficulty, Time, Payout, Needs, How, Icon; }

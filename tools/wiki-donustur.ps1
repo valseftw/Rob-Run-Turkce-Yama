@@ -274,6 +274,55 @@ if ((Test-Path $appJs) -and (Get-Command node -ErrorAction SilentlyContinue)) {
         baslangicPaketi = @($g.baslangicPaketi)
     }
 }
+# --- Yerleşim ve Üs rehberi: metinler oyunun kendi Türkçe açıklamalarından (yama çevirisi), bedeller Larry ağacından
+$gameText = @{}
+foreach ($t in $trJson.Keys) { if ($t -like '_*') { continue }; foreach ($k in $trJson[$t].Keys) { if ($trJson[$t][$k].tr) { $gameText[$k] = ($trJson[$t][$k].tr -replace '<[^<>]+>', '' -replace '\\n', "`n").Trim() } } }
+function G([string[]]$keys) { @($keys | ForEach-Object { $gameText[$_] } | Where-Object { $_ -and $_ -notmatch '\{[A-Za-z0-9:]+\}' }) }
+$nodeById = @{}; foreach ($b in $branches) { foreach ($n in $b.dugumler) { $nodeById[$n.id] = $n } }
+function Costs([string[]]$ids) { @($ids | Where-Object { $nodeById.ContainsKey($_) } | ForEach-Object { $n = $nodeById[$_]; $ia = ($items | Where-Object { $_.id -eq $n.id } | Select-Object -First 1).ad; [ordered]@{ id = $n.id; ad = ($ia ?? $n.ad); arastirma = $n.arastirma; fiyat = $n.fiyat } }) }
+function Rel([string[]]$ids) { @($ids | Where-Object { $itemIds.ContainsKey($_) -or $nodeById.ContainsKey($_) }) }
+$houseBranch = @($branches | Where-Object id -eq 'custom_node_houses' | ForEach-Object { $_.dugumler } | Sort-Object asama | ForEach-Object id)
+$yerlesim = @(
+    [ordered]@{ baslik = 'Ev bölgesi (üs) nedir?'; rozet = 'Temel'; paragraflar = G 'codex_buff_base_description', 'info_panel_player_plot_description', 'codex_buff_outside_law_description'
+        maddeler = G 'rent_land_plot_benefit_black_market', 'rent_land_plot_benefit_buildings', 'rent_land_plot_benefit_own_cars_bench'; ilgili = Rel 'home_1', 'home_2', 'home_3', 'money_workbench', 'storage_building_1'; dal = $null; maliyet = @() }
+    [ordered]@{ baslik = 'Arsa nasıl alınır?'; rozet = 'Arsa Tapusu'; paragraflar = G 'codex_buy_plot_description', 'plot_sale_1_description', 'rent_dialog_description'
+        maddeler = @('1. Larry''nin sevkiyatlarında Arsa Tapusu''nu araştır, sonra Karaborsa''dan satın al.', '2. Tapunun seviyesi yaşamak istediğin bölgenin seviyesiyle (1, 2 ya da 3) aynı olmalı.', '3. Genel haritadan sahibi olan bir oyuncu yerleşimine git ve tapuyu boş bir arsada kullan.', '4. Yeni bir arsa kiralarsan oraya taşınırsın; üssündeki her şey yeni arsaya aktarılır.')
+        ilgili = Rel 'plot_sale_1', 'plot_sale_2', 'plot_sale_3'; dal = 'custom_node_documents'; maliyet = Costs 'plot_sale_1', 'plot_sale_2', 'plot_sale_3' }
+    [ordered]@{ baslik = 'Evini kur ve geliştir'; rozet = 'Arsa Planı'; paragraflar = G 'hints_plot_builder_description', 'hints_set_furniture_description', 'codex_buff_base_description'
+        maddeler = @('Ev türleri sırasıyla açılır: Karavan → Küçük Ev → Malikâne. Büyük ev daha fazla yapı ve mobilya yeri demektir.', 'Çitler (Çiftlik, Tel, Metal, Beton) arsanı çevreler; raflar ve kasalar ganimet saklama yerini büyütür.', 'Tüm ev, çit, sigorta ve alarm geliştirmeleri Larry''nin "İnşaat, Ev & Güvenlik" dalındadır.')
+        ilgili = Rel 'home_1', 'home_2', 'home_3', 'wall_1', 'wall_2', 'wall_3', 'wall_4', 'shelving_1', 'storage_1', 'storage_building_1'; dal = 'custom_node_houses'; maliyet = Costs $houseBranch }
+    [ordered]@{ baslik = 'Para aklama ve banka'; rozet = 'Aklama Masası'; paragraflar = G 'hints_money_workbench_description', 'codex_cash_withdrawal_description'
+        maddeler = @('Cebindeki kirli nakit ölürsen gider; aklayıp banka hesabına yatırınca güvende olur.', 'Banknot Sayma Makinesi aklamayı hızlandırır.', 'Bir yerleşimde akladığın paradan yerleşim sahibi vergi alır.')
+        ilgili = Rel 'money_workbench', 'money_workbench_speedup_1', 'atm'; dal = 'custom_node_furniture'; maliyet = Costs 'money_workbench_speedup_1', 'money_workbench_speedup_2', 'money_workbench_speedup_3' }
+    [ordered]@{ baslik = 'Üretim: kargo, laboratuvar, yetiştirme'; rozet = 'Tezgâhlar'; paragraflar = G 'hints_cargo_open_workbench_description', 'hints_cargo_buyer_description', 'hints_lab_workbench_description', 'codex_garden_bed_description', 'hints_craft_workbench_description'
+        maddeler = G 'hints_stolen_cargo_description', 'hints_cargo_seller_description'
+        ilgili = Rel 'skill_cargo_open_workbench_0', 'skill_cargo_exchange_workbench_0', 'meth_lab_1', 'narco_farm_1', 'collection_table', 'cargo_workbench_1', 'cargo_production_workbench_1'; dal = 'custom_node_farm'; maliyet = @() }
+    [ordered]@{ baslik = 'Kaçak mal paketleme'; rozet = 'Kaçak Mal Tezgâhı'
+        paragraflar = G 'cargo_exchange_workbench_1_description', 'hints_cargo_buyer_description', 'marker_buy_cargo_description', 'tsd_u_hub_lenny_npc_a_5', 'hints_cargo_seller_description', 'codex_buff_selling_cargo_bonus_description', 'tsd_u_hub_lenny_npc_c_3'
+        maddeler = @(
+            '1. Kaçak Kargo''yu Looty Bay''den, Lenny''nin Moteli''nden ya da bölgendeki Satış Merkezi''nden satın al. (Satış Merkezi''ne yalnızca o bölgede arsa kiralayanlar girebilir.)',
+            '2. Kargoyu üssündeki Kaçak Mal Tezgâhı''na koy; yeniden paketleme zaman alır. İşlem sürerken kargoyu geri alırsan paketleme durur ve baştan başlaman gerekir.',
+            '3. Paketlenen kargoyu Kaçakçı Kamyoneti''ne sat. Satış bonusu bulunduğun konuma ve aranma seviyene bağlıdır; aranma seviyen yüksekken satmak daha kârlıdır.',
+            '4. Wiki verisine göre $10.000''lık ham paket yaklaşık 30 dakikada $35.000–$50.000 değerinde kargoya dönüşür (oyunda doğrula).',
+            '5. Etiket Yazıcı paketlemeyi hızlandırır; Alet Kutusu ve Ek Yuvalar aynı anda daha çok kargo paketlemeni sağlar.',
+            '6. Kaçakçıya yaptığın her teslimat Kargo Listesi''ni doldurur; dolunca iyi bir fiyata satılabilir.',
+            '7. Dikkat: hapis süren yasa dışı varlıklarına göre belirlenir; kaçak mal dolu depolar cezanı uzatır.')
+        ilgili = Rel 'cargo_alcohol_grade_1', 'cargo_exchange_workbench_1', 'cargo_exchange_workbench_speedup_upgrade_1', 'cargo_exchange_workbench_additional_slot', 'cargo_manifest_1_cumulative', 'cargo_manifest_2_cumulative', 'cargo_contraband_bag_1', 'cargo_contraband_bag_2'
+        dal = 'custom_node_furniture'
+        maliyet = Costs 'cargo_exchange_workbench_1', 'cargo_exchange_workbench_speedup_upgrade_1', 'cargo_exchange_workbench_speedup_upgrade_2', 'cargo_exchange_workbench_additional_slot_upgrade', 'cargo_exchange_workbench_additional_double_slot_upgrade', 'cargo_manifest_2_cumulative' }
+    [ordered]@{ baslik = 'Araç, garaj ve bagaj'; rozet = 'Garaj'; paragraflar = G 'hints_vehicle_keyholder_description', 'hints_rent_vehicle_description', 'hints_vehicle_trunk_description', 'hints_vehicle_hood_description'
+        maddeler = @(); ilgili = Rel 'car_garage_1', 'car_garage_2', 'watchtower_1', 'helicopter_garage_1', 'fukurou_tensa'; dal = 'custom_node_cars'; maliyet = @() }
+    [ordered]@{ baslik = 'Üs savunması ve baskın'; rozet = 'Güvenlik'; paragraflar = G 'hints_builder_defense_panel_description', 'codex_buff_enemy_plot_description', 'evict_plot_1_description', 'hints_first_aid_cabinet_description'
+        maddeler = @('Kendi üssünü Sigorta ve Alarm Sistemleriyle koru; başkasının üssüne Şifre Çözücü ile girilir.', 'Şifre Çözücü yapının savunma seviyesini kırma değeri kadar düşürür; kademesi yükseldikçe daha güçlüdür.', 'Bir oyuncuyu arsadan atmak için Tahliye Hakkı gerekir ve üssündeki tüm güvenlik sistemleri hacklenmelidir.')
+        ilgili = Rel 'decoder_1', 'decoder_2', 'decoder_3', 'evict_plot_1', 'personal_alarm_1', 'first_aid_cabinet_1'; dal = 'custom_node_houses'; maliyet = @() }
+    [ordered]@{ baslik = 'Yerleşim sahibi olmak ve vergi'; rozet = 'Yerleşim Tapusu'; paragraflar = G 'codex_buy_settlement_description', 'buy_settelment_dialog_description_text', 'hints_tax_point_description', 'settlement_ui_description'
+        maddeler = @('Gelir, sakinlerin akladığı paradan ve Karaborsa alışverişlerinden alınan vergidir; sakin sayısı ve sakinlerin harcaması arttıkça artar.', 'Vergiyi Tahsildar Kamyoneti''nde topla. Toplanmamış bakiye varken yeni vergi hesaba geçmez; düzenli topla.', 'Sahip kendine ücretsiz arsa ayırabilir. Bölgeyi bir klan ele geçirdiyse sahip o klana haraç öder.', 'Vergi oranı oyunda açıklanmaz; kesin tutarı oyun içinde gözlemleyerek öğrenebilirsin.')
+        ilgili = Rel 'settlement_sale_1', 'settlement_sale_2', 'settlement_sale_3'; dal = 'custom_node_documents'; maliyet = Costs 'settlement_sale_1', 'settlement_sale_2', 'settlement_sale_3' }
+    [ordered]@{ baslik = 'Klanlar, bölgeler ve Gölge Vali'; rozet = 'Klan'; paragraflar = G 'clan_wars_mail_description', 'hints_business_description', 'conquest_central_sector_dialog_description_text'
+        maddeler = G 'realm_conquest_sector_dialog_description_1', 'realm_conquest_central_sector_dialog_description_2', 'clan_banner_description_1', 'clan_banner_description_3'
+        ilgili = @(); dal = $null; maliyet = @() }
+)
+if ($rehber) { $rehber.yerlesim = $yerlesim }
 $out = [ordered]@{
     _bilgi = [ordered]@{ surum = $Surum; oyun = 'ROB RUN'; oyunSurumu = ($db.meta.version -replace '\s*\(.*\)$', ''); kaynak = 'ROB RUN Türkçe Wiki (Rob Run: Türkiye Official Server)' }
     esyalar = @($items); silahlar = @($weapons); agac = @($branches); takaslar = @($barters); binalar = @($buildings); soygunlar = @($robberies)

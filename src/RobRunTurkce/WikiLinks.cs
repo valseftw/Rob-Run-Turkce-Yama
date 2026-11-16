@@ -58,6 +58,31 @@ namespace RobRunTurkce
             if (w.Map != null) foreach (var p in w.Map.Pois) { Add(p.Name, p); Add(p.En, p); }
             foreach (var b in w.Buildings) if (w.Map == null || !w.Map.Pois.Any(p => p.Name == b.Name)) { Add(b.Name, b); Add(b.En, b); }
 
+            // Rehber metinlerinde geçen kısa/halk arasındaki adlar (ör. "Kamera", "USB", "Kasa Matkabı")
+            void Alias(string target, params string[] names)
+            {
+                object t = w.ItemById.TryGetValue(target, out var it) ? it : w.NodeById.TryGetValue(target, out var n) ? n
+                    : (object)w.Map?.Pois.FirstOrDefault(p => p.Kind == target);
+                if (t == null) return;
+                foreach (var a in names) { byName[a] = t; canonical[a] = a; }
+            }
+            Alias("action_camera_1_cumulative", "Kamera", "Dolu Kamera", "Yeşil Kamera", "Action Camera");
+            Alias("action_camera_2_cumulative", "Mor Kamera");
+            Alias("action_camera_3_cumulative", "Altın Kamera");
+            Alias("usb_1_cumulative", "USB", "Dolu USB", "USB Hack Cihazı", "USB Hacking Tool");
+            Alias("tablet_1_cumulative", "Tablet", "Dolu Tablet", "Code Tablet");
+            Alias("drill_1", "Kasa Matkabı", "Banka Kasa Matkabı", "Drill");
+            Alias("idcard_key_1", "Banka Kartı", "ID Card", "Kimlik Kartı");
+            Alias("glass_cutter_1", "Elmas Cam Kesici", "Glass Cutter");
+            Alias("auto_flipper_1", "Sinyal Kesici", "Jammer");
+            Alias("lockpick_1", "Lockpick");
+            Alias("gold_bar_1", "Gold Bar", "Altın Külçe");
+            Alias("cargo_workbench_lab_table_1", "Laboratuvar Masaları", "Laboratuvar Masası");
+            Alias("fuse_box", "Sigorta Kutusu", "Elektrik Sigorta Kutusu", "Fuse Box");
+            Alias("smuggler", "Kaçakçı Kamyoneti", "Kaçakçı Minibüsü", "Kaçakçı");
+            Alias("cargo_alcohol_grade_1", "Kaçak Kargo");
+            Alias("cargo_exchange_workbench_1", "Kaçak Mal Tezgâhı", "Kaçakçılık tezgahı");
+
             var names = byName.Keys.OrderByDescending(k => k.Length).Select(Regex.Escape);
             rx = new Regex(@"(?<![\p{L}\p{N}])(" + string.Join("|", names) + @")(?![\p{L}\p{N}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 

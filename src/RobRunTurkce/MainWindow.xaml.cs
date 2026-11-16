@@ -950,6 +950,8 @@ namespace RobRunTurkce
             w.wikiData.ItemById.TryGetValue("drill_1", out var drill);
             w.wikiData.ItemById.TryGetValue("decoder_2", out var dec2);
             if (vault != null) { w.wikiView.Show(5, vault); Shot("soygun-hazirlik.png"); }
+            if (w.wikiData.Guides?.Base.Count > 1) { w.wikiView.Show(9, w.wikiData.Guides.Base[1]); Shot("yerlesim1.png"); w.wikiView.Show(9, w.wikiData.Guides.Base[2]); w.wikiView.ScrollDetail(300); Shot("yerlesim2.png"); var km = w.wikiData.Guides.Base.Find(a => a.Title == "Kaçak mal paketleme"); if (km != null) { w.wikiView.Show(9, km); Shot("kacak1.png"); w.wikiView.ScrollDetail(620); Shot("kacak2.png"); } }
+            if (w.wikiData.Guides?.Money.Count > 0) { w.wikiView.Show(7, w.wikiData.Guides.Money[0]); Shot("gerekenler.png"); w.wikiView.Show(5, w.wikiData.Robberies.Find(r => r.Id == "art-gallery") ?? vault); w.wikiView.ScrollDetail(380); Shot("aletler.png"); }
             if (drill != null) { w.wikiView.Peek(drill); for (int k = 0; k < 25; k++) { DoEvents(); Thread.Sleep(15); } Shot("onizleme.png"); w.wikiView.ClosePeek(); }
             if (dec2 != null) { w.wikiView.Show(0, dec2); Shot("sifre-cozucu.png"); }
             if (w.wikiData.ItemById.TryGetValue("usb_1_cumulative", out var usb)) { w.wikiView.Show(0, usb); for (int k = 0; k < 10; k++) { DoEvents(); Thread.Sleep(15); } w.wikiView.ScrollDetail(420); Shot("kullanim.png"); }
