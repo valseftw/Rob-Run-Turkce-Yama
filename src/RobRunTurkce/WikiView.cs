@@ -27,6 +27,9 @@ namespace RobRunTurkce
         public string Search; // küçük harfli arama metni
     }
 
+    /// <summary>Planım bölümünün özet kaydı (tek örnek).</summary>
+    public sealed class PlanSummary { public static readonly PlanSummary Instance = new PlanSummary(); }
+
     /// <summary>Başlangıç rehberi satırı: adım, para yöntemi ya da sık yapılan hata.</summary>
     sealed class GuideItem { public string Kind; public object Value; }
 
@@ -34,7 +37,7 @@ namespace RobRunTurkce
     /// Rehber: ROB RUN Türkçe Wiki verisinin uygulama içi görünümü. Solda arama + filtre + liste, sağda ayrıntı.
     /// Looty Bay haritası bölümünde liste yerine etkileşimli harita gösterilir. Kenar çubuğundaki bölüm listesi (Nav) de burada üretilir.
     /// </summary>
-    public sealed class WikiView : Grid
+    public sealed partial class WikiView : Grid
     {
         readonly Wiki w;
         public readonly ScrollViewer Nav = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -54,7 +57,10 @@ namespace RobRunTurkce
         string chip; // seçili filtre (null = tümü)
         List<WRow> rows = new List<WRow>();
         readonly Dictionary<int, Border> navItems = new Dictionary<int, Border>();
-        readonly HashSet<string> plan = new HashSet<string>(StringComparer.Ordinal); // sevkiyat planlayıcısı
+        readonly Dictionary<int, TextBlock> navCounts = new Dictionary<int, TextBlock>();
+        /// <summary>Kişisel veriler (plan, açılanlar, hazırlık listeleri, harita notları): kapanınca kaybolmaz.</summary>
+        public readonly UserData User = UserData.Load();
+        HashSet<string> plan => User.Plan; // sevkiyat planlayıcısı
         public readonly WikiLinks Links;
         // Ayrıntıdaki bağlantılara tıklanınca ne olacağı (ana görünümde: önizleme penceresi; ayrı pencerede: o pencerede aç)
         Action<object> linkOpen;
@@ -76,15 +82,15 @@ namespace RobRunTurkce
         static readonly FontFamily Display = new FontFamily("Segoe UI Variable Display, Segoe UI");
         static readonly Brush Label = B("#F5F5F7"), Secondary = B("#98989F"), Surface = B("#2C2C2E"), Sep = B("#38383A"), Blue = B("#0A84FF");
 
-        const int SecItems = 0, SecWeapons = 1, SecTree = 2, SecBarters = 3, SecBuildings = 4, SecRobberies = 5, SecMap = 6, SecGuide = 7, SecDevices = 8, SecBase = 9;
+        const int SecItems = 0, SecWeapons = 1, SecTree = 2, SecBarters = 3, SecBuildings = 4, SecRobberies = 5, SecMap = 6, SecGuide = 7, SecDevices = 8, SecBase = 9, SecPlan = 10, SecCalc = 11;
         static readonly (string name, string glyph, string tint)[] Sections =
         {
             ("Eşyalar", "", "#0A84FF"), ("Silahlar", "", "#FF453A"), ("Larry'nin Sevkiyatları", "", "#30D158"),
             ("Takaslar", "", "#FF9F0A"), ("Binalar", "", "#5E5CE6"), ("Soygunlar", "", "#BF5AF2"),
-            ("Looty Bay Haritası", "", "#64D2FF"), ("Başlangıç Rehberi", "", "#FF375F"), ("Birikimli Cihazlar", "", "#FFB340"), ("Yerleşim ve Üs", "\uE81D", "#AC8E68"),
+            ("Looty Bay Haritası", "", "#64D2FF"), ("Başlangıç Rehberi", "", "#FF375F"), ("Birikimli Cihazlar", "", "#FFB340"), ("Yerleşim ve Üs", "\uE81D", "#AC8E68"), ("Planım", "\uE73A", "#30D158"), ("Hesaplayıcılar", "\uE8EF", "#5AC8FA"),
         };
         /// <summary>Kenar çubuğundaki sıra.</summary>
-        static readonly int[] NavOrder = { SecGuide, SecBase, SecItems, SecMap, SecTree, SecWeapons, SecDevices, SecBarters, SecBuildings, SecRobberies };
+        static readonly int[] NavOrder = { SecGuide, SecPlan, SecCalc, SecBase, SecItems, SecMap, SecTree, SecWeapons, SecDevices, SecBarters, SecBuildings, SecRobberies };
 
         public WikiView(Wiki wiki)
         {
@@ -134,6 +140,7 @@ namespace RobRunTurkce
 
             Links = new WikiLinks(w);
             linkOpen = Peek;
+            User.Changed += () => Dispatcher.BeginInvoke(new Action(OnUserChanged));
 
             // --- önizleme penceresi: başlık (geri · tür · ayrı pencere · sayfaya git · kapat) + içerik
             var ph = new Grid { Margin = new Thickness(12, 10, 10, 8) };
@@ -167,7 +174,7 @@ namespace RobRunTurkce
             Show(w.Guides != null ? SecGuide : SecItems);
         }
 
-        bool Available(int sec) => sec == SecMap ? w.Map != null : sec == SecBase ? (w.Guides?.Base.Count ?? 0) > 0 : sec == SecGuide || sec == SecDevices ? w.Guides != null : true;
+        bool Available(int sec) => sec == SecPlan || sec == SecCalc ? true : sec == SecMap ? w.Map != null : sec == SecBase ? (w.Guides?.Base.Count ?? 0) > 0 : sec == SecGuide || sec == SecDevices ? w.Guides != null : true;
 
         // ============================================================ kenar çubuğu bölüm listesi
 
@@ -185,6 +192,8 @@ namespace RobRunTurkce
                     case SecRobberies: return w.Robberies.Count;
                     case SecMap: return w.Map?.Pois.Count ?? 0;
                     case SecBase: return w.Guides?.Base.Count ?? 0;
+                    case SecPlan: return plan.Count;
+                    case SecCalc: return CalcKind.All.Length;
                     case SecGuide: return w.Guides == null ? 0 : w.Guides.Steps.Count + w.Guides.Money.Count + w.Guides.Mistakes.Count;
                     default: return w.Guides?.Devices.Count ?? 0;
                 }
@@ -207,6 +216,7 @@ namespace RobRunTurkce
                 Grid.SetColumn(name, 1); g.Children.Add(name);
                 var cnt = new TextBlock { Text = Count(idx).ToString("N0", Tr), FontSize = 11.5, Foreground = Secondary, VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(cnt, 2); g.Children.Add(cnt);
+                navCounts[idx] = cnt;
                 var item = new Border { CornerRadius = new CornerRadius(9), Padding = new Thickness(8, 4, 10, 4), Margin = new Thickness(0, 0, 0, 2), Background = Brushes.Transparent, Child = g, Cursor = Cursors.Hand };
                 int sec = idx;
                 item.MouseEnter += (s, e) => { if (section != sec) item.Background = B("#1FFFFFFF"); };
@@ -260,7 +270,7 @@ namespace RobRunTurkce
             UpdateNav();
             if (changed) { chip = null; search.Text = ""; }
             title.Text = Sections[sec].name;
-            searchHint.Text = sec == SecMap ? "Haritada ara (bina, eşya…)" : "Ara";
+            searchHint.Text = sec == SecMap ? "Haritada ara (bina, eşya…)" : "Ara · her yerde Ctrl+K";
             SetMapMode(sec == SecMap);
             if (sec == SecMap)
             {
@@ -290,7 +300,7 @@ namespace RobRunTurkce
         {
             if (on && mapView == null)
             {
-                mapView = new WikiMap(w.Map, w) { RightInset = MapCardWidth + 20 };
+                mapView = new WikiMap(w.Map, w) { RightInset = MapCardWidth + 20, User = User };
                 mapView.Selected += o => ShowDetail(o);
                 SetRow(mapView, 2); SetColumnSpan(mapView, 3);
                 Children.Insert(Children.IndexOf(detailHost), mapView); // kart haritanın üstünde kalsın
@@ -334,8 +344,8 @@ namespace RobRunTurkce
                 case SecTree:
                     return w.Branches.SelectMany(b => b.Nodes.OrderBy(n => n.Stage)).Select(n => new WRow
                     {
-                        Title = (plan.Contains(n.Id) ? "✓ " : "") + n.Name, Sub = $"{n.Stage}. aşama" + (n.Research > 0 ? " · araştırma " + Wiki.Money(n.Research) : ""), Value = Wiki.Money(n.Price), IconName = n.Icon,
-                        Accent = plan.Contains(n.Id) ? Blue : Rarity(n.Color), Tag = n, Search = Lower(n.Name, n.En, n.Branch.Name),
+                        Title = Mark(User, n.Id) + n.Name, Sub = $"{n.Stage}. aşama" + (n.Research > 0 ? " · araştırma " + Wiki.Money(n.Research) : ""), Value = Wiki.Money(n.Price), IconName = n.Icon,
+                        Accent = User.Done.Contains(n.Id) ? B("#30D158") : plan.Contains(n.Id) ? Blue : Rarity(n.Color), Tag = n, Search = Lower(n.Name, n.En, n.Branch.Name),
                     }).ToList();
                 case SecBarters:
                     return w.Barters.Select(b => new WRow
@@ -362,6 +372,12 @@ namespace RobRunTurkce
                         .Concat(g.Money.Select(m => new WRow { Title = m.Title, Sub = m.Rank, Value = m.Payout, IconName = m.Icon, Tag = new GuideItem { Kind = "Para kazanma", Value = m }, Accent = B("#30D158"), Search = Lower(m.Title, m.Rank, m.How) }))
                         .Concat(g.Mistakes.Select(m => new WRow { Title = m.title, Sub = "Sık yapılan hata " + m.no, Tag = new GuideItem { Kind = "Sık hatalar", Value = m }, Accent = B("#FF9F0A"), Search = Lower(m.title, m.text) }))
                         .ToList();
+                case SecCalc:
+                    return CalcKind.All.Select(k => new WRow { Title = k.Title, Sub = k.Sub, IconName = k.Icon, Tag = k, Accent = B("#5AC8FA"), Search = Lower(k.Title, k.Sub) }).ToList();
+                case SecPlan:
+                    return new[] { new WRow { Title = "Plan özeti", Sub = $"{plan.Count(id => User.Done.Contains(id))}/{plan.Count} açıldı", Tag = PlanSummary.Instance, Accent = B("#30D158"), Search = "plan özeti" } }
+                        .Concat(PlanNodes().Select(n => new WRow { Title = Mark(User, n.Id) + n.Name, Sub = n.Branch.Name + " · " + n.Stage + ". aşama", Value = Wiki.Money((n.Research ?? 0) + (n.Price ?? 0)), IconName = n.Icon, Tag = n,
+                            Accent = User.Done.Contains(n.Id) ? B("#30D158") : Blue, Search = Lower(n.Name, n.En, n.Branch.Name) })).ToList();
                 case SecBase:
                     return w.Guides.Base.Select(a => new WRow
                     {
@@ -500,6 +516,8 @@ namespace RobRunTurkce
                     case WObj o: ObjDetail(sp, o); break;
                     case WDevice d: DeviceDetail(sp, d); break;
                     case WArticle a: ArticleDetail(sp, a); break;
+                    case PlanSummary _: PlanView(sp); break;
+                    case CalcKind ck: CalcDetail(sp, ck); break;
                     default: GuideDetail(sp, building); break;
                 }
             }
@@ -530,6 +548,8 @@ namespace RobRunTurkce
                 case WDevice _: return "BİRİKİMLİ CİHAZ";
                 case WMoney _: return "PARA KAZANMA";
                 case WArticle _: return "YERLEŞİM VE ÜS";
+                case PlanSummary _: return "PLANIM";
+                case CalcKind _: return "HESAPLAYICI";
                 default: return "BAŞLANGIÇ REHBERİ";
             }
         }
@@ -550,11 +570,130 @@ namespace RobRunTurkce
                 case WStep s: return s.Title;
                 case WMoney m: return m.Title;
                 case WArticle a: return a.Title;
+                case PlanSummary _: return "Planım";
+                case CalcKind ck: return ck.Title;
                 case ValueTuple<string, string, string> t: return t.Item2;
                 default: return "Rehber";
             }
         }
 
+        // ------------------------------------------------------------------ her yerde arama (Ctrl+K)
+
+        Grid searchLayer;
+        TextBox globalBox;
+        ListBox globalList;
+        List<(WRow row, string key, string en)> globalIndex;
+
+        /// <summary>Tüm rehberde tek kutudan arama: eşya, silah, sevkiyat, takas, bina, soygun, harita, cihaz, rehber.</summary>
+        public void OpenSearch()
+        {
+            if (searchLayer == null) BuildSearch();
+            ClosePeek();
+            searchLayer.Visibility = Visibility.Visible;
+            searchLayer.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(140)));
+            globalBox.Text = "";
+            RunGlobalSearch();
+            Dispatcher.BeginInvoke(new Action(() => { globalBox.Focus(); Keyboard.Focus(globalBox); }), System.Windows.Threading.DispatcherPriority.Input);
+        }
+
+        public void CloseSearch() { if (searchLayer != null) searchLayer.Visibility = Visibility.Collapsed; }
+
+        void BuildSearch()
+        {
+            globalIndex = new List<(WRow, string, string)>();
+            void Add(object o, string title, string en, string icon, string sub)
+            {
+                if (string.IsNullOrEmpty(title)) return;
+                globalIndex.Add((new WRow { Title = title, Sub = sub, IconName = icon, Tag = o, Value = KindLabel(o).ToLower(Tr) }, title.ToLower(Tr), (en ?? "").ToLower(Tr)));
+            }
+            // aynı adı taşıyan iç kayıtlar (ör. drill_target, builder_… yuvaları) yerine asıl eşya gösterilsin
+            bool Internal(WItem i) => i.Id.EndsWith("_target") || i.Id.StartsWith("builder_") || i.Id.StartsWith("skill_") || i.Id.StartsWith("item_");
+            foreach (var grp in w.Items.GroupBy(i => (i.Name ?? "").ToLower(Tr)))
+            {
+                var i = grp.OrderBy(x => Internal(x) ? 1 : 0).ThenByDescending(x => x.Price ?? 0).First();
+                Add(i, i.Name, i.En, i.Icon, i.Category);
+            }
+            foreach (var x in w.Weapons) Add(x, x.Name, x.Family, x.Icon, x.Class);
+            foreach (var n in w.NodeById.Values) if (n.ItemId == null) Add(n, n.Name, n.En, n.Icon, n.Branch.Name);
+            foreach (var b in w.Barters) Add(b, b.Name + " takası", null, b.Icon, b.Npc);
+            foreach (var b in w.Buildings) Add(b, b.Name, b.En, null, b.Type);
+            foreach (var r in w.Robberies) Add(r, r.Name, null, r.Icon, r.Group);
+            if (w.Map != null) foreach (var p in w.Map.Pois) Add(p, p.Name, p.En, null, "Harita · " + p.KindName);
+            if (w.Guides != null)
+            {
+                foreach (var d in w.Guides.Devices) if (!w.ItemById.ContainsKey(d.Id ?? "")) Add(d, d.Name, null, d.Icon, d.Badge);
+                foreach (var st in w.Guides.Steps) Add(st, st.Title, null, null, st.Badge);
+                foreach (var m in w.Guides.Money) Add(m, m.Title, null, m.Icon, m.Rank);
+                foreach (var a in w.Guides.Base) Add(a, a.Title, null, null, a.Badge);
+            }
+            foreach (var ck in CalcKind.All) Add(ck, ck.Title, null, ck.Icon, ck.Sub);
+            {
+            }
+
+            searchLayer = new Grid { Visibility = Visibility.Collapsed };
+            SetRowSpan(searchLayer, 3); SetColumnSpan(searchLayer, 3); Panel.SetZIndex(searchLayer, 40);
+            searchLayer.Margin = new Thickness(-32, -4, -28, -20);
+            var dim = new Rectangle { Fill = B("#99000000") };
+            dim.MouseLeftButtonDown += (s, e) => CloseSearch();
+            searchLayer.Children.Add(dim);
+            var card = new Border
+            {
+                Width = 600, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 40, 0, 0), CornerRadius = new CornerRadius(16),
+                Background = B("#F2242426"), BorderBrush = B("#48484A"), BorderThickness = new Thickness(1),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 40, ShadowDepth = 10, Direction = 270, Opacity = 0.6 },
+            };
+            var dock = new DockPanel();
+            var top = new Grid { Height = 56, Margin = new Thickness(18, 0, 18, 0) };
+            top.Children.Add(new TextBlock { Text = "\uE721", FontFamily = Icons, FontSize = 18, Foreground = Secondary, VerticalAlignment = VerticalAlignment.Center });
+            globalBox = new TextBox
+            {
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Label, CaretBrush = Blue, FontSize = 18, Margin = new Thickness(32, 0, 60, 0),
+                VerticalContentAlignment = VerticalAlignment.Center, FocusVisualStyle = null, SelectionBrush = Blue,
+            };
+            var hint = new TextBlock { Text = "Rehberde ara: eşya, soygun, bina, harita, yazı…", FontSize = 18, Foreground = B("#6C6C70"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(34, 0, 0, 0), IsHitTestVisible = false };
+            top.Children.Add(hint);
+            top.Children.Add(globalBox);
+            top.Children.Add(new Border { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, CornerRadius = new CornerRadius(6), Background = B("#3A3A3C"), Padding = new Thickness(7, 2, 7, 3),
+                Child = new TextBlock { Text = "Esc", FontSize = 11, Foreground = Secondary } });
+            DockPanel.SetDock(top, Dock.Top); dock.Children.Add(top);
+            var sep = new Rectangle { Height = 1, Fill = Sep }; DockPanel.SetDock(sep, Dock.Top); dock.Children.Add(sep);
+            globalList = new ListBox
+            {
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0), MaxHeight = 440, Margin = new Thickness(6),
+                ItemTemplate = (DataTemplate)Application.Current.FindResource("WikiRow"), ItemContainerStyle = (Style)Application.Current.FindResource("WikiListItem"),
+            };
+            ScrollViewer.SetHorizontalScrollBarVisibility(globalList, ScrollBarVisibility.Disabled);
+            globalList.PreviewMouseLeftButtonUp += (s, e) => { if (globalList.SelectedItem is WRow r) { CloseSearch(); GoToPage(r.Tag); } };
+            dock.Children.Add(globalList);
+            card.Child = dock;
+            searchLayer.Children.Add(card);
+            Children.Add(searchLayer);
+
+            globalBox.TextChanged += (s, e) => { hint.Visibility = globalBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed; RunGlobalSearch(); };
+            globalBox.PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Escape) { CloseSearch(); e.Handled = true; }
+                else if (e.Key == Key.Down) { globalList.SelectedIndex = Math.Min(globalList.Items.Count - 1, globalList.SelectedIndex + 1); globalList.ScrollIntoView(globalList.SelectedItem); e.Handled = true; }
+                else if (e.Key == Key.Up) { globalList.SelectedIndex = Math.Max(0, globalList.SelectedIndex - 1); globalList.ScrollIntoView(globalList.SelectedItem); e.Handled = true; }
+                else if (e.Key == Key.Enter && globalList.SelectedItem is WRow r) { CloseSearch(); GoToPage(r.Tag); e.Handled = true; }
+                else if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Shift && globalList.SelectedItem is WRow r2) { CloseSearch(); Peek(r2.Tag); e.Handled = true; }
+            };
+        }
+
+        void RunGlobalSearch()
+        {
+            var q = globalBox.Text.Trim().ToLower(Tr);
+            IEnumerable<WRow> res;
+            if (q.Length == 0)
+                res = globalIndex.Where(x => x.row.Tag is WArticle || x.row.Tag is WStep).Select(x => x.row).Take(12); // boşken: rehber yazıları
+            else
+                res = globalIndex
+                    .Select(x => (x.row, score: x.key == q || x.en == q ? 0 : x.key.StartsWith(q) || x.en.StartsWith(q) ? 1 : x.key.Contains(" " + q) ? 2 : x.key.Contains(q) || x.en.Contains(q) ? 3 : 9))
+                    .Where(x => x.score < 9).OrderBy(x => x.score).ThenBy(x => x.row.Title.Length).Select(x => x.row).Take(40);
+            var list = res.ToList();
+            globalList.ItemsSource = list;
+            globalList.SelectedIndex = list.Count > 0 ? 0 : -1;
+        }
         // ------------------------------------------------------------------ önizleme penceresi
 
         Border IconButton(string glyph, string tip, Action click)
@@ -623,6 +762,8 @@ namespace RobRunTurkce
                 case WDevice _: Show(SecDevices, o); break;
                 case WStep _: case WMoney _: Show(SecGuide, o); break;
                 case WArticle _: Show(SecBase, o); break;
+                case PlanSummary _: Show(SecPlan, o); break;
+                case CalcKind _: Show(SecCalc, o); break;
                 default: Show(SecGuide); break;
             }
         }
@@ -797,6 +938,15 @@ namespace RobRunTurkce
 
         int MapCount(string itemId) => w.Map == null ? 0 : w.Map.Objects.Count(o => o.Loot.Any(l => l.id == itemId)) + w.Map.Pois.Count(p => p.Loot.Any(l => l.Id == itemId));
 
+        /// <summary>Geliştirme/ekran görüntüsü: aramayı açıp yazar.</summary>
+        internal void SearchFor(string q) { OpenSearch(); globalBox.Text = q; }
+        /// <summary>Geliştirme/ekran görüntüsü: hesaplayıcılara örnek değer koyar.</summary>
+        internal void DemoCalc()
+        {
+            foreach (var (id, n) in new[] { ("alcohol_13", 2), ("jewelry_pouch_1", 3), ("gold_bar_1", 1) }) if (w.ItemById.TryGetValue(id, out var it)) sellList.Add((it, n));
+            fenceLevel = 3;
+            heistBuilding = w.Buildings.FirstOrDefault(b => b.Id == "city_gas_station");
+        }
         /// <summary>Geliştirme/ekran görüntüsü: ayrıntı panelini kaydırır.</summary>
         internal void ScrollDetail(double y) => detail.ScrollToVerticalOffset(y);
         /// <summary>Geliştirme/ekran görüntüsü: eşyanın çıktığı noktaları haritada gösterir.</summary>
@@ -806,6 +956,7 @@ namespace RobRunTurkce
         {
             if (w.Guides == null) return;
             foreach (var id in w.Guides.StarterPack) AddWithPrereqs(id);
+            User.Save();
             Show(SecTree, w.Guides.StarterPack.Select(id => w.NodeById.TryGetValue(id, out var n) ? n : null).FirstOrDefault(n => n != null));
         }
 
@@ -830,6 +981,20 @@ namespace RobRunTurkce
                 Card(sp, new[] { ((string)null, filter, "Kaldır", (Action)(() => { mapView.ClearFilters(); ShowMapSummary(); })) });
             }
             Buttons(sp, ("Haritayı ayrı pencerede aç", false, () => PipWindow.OpenMap(this, w.Map, w)));
+            // kişisel rota ve notlar
+            Header(sp, User.Route.Count > 0 ? $"Rotam ({User.Route.Count} durak)" : "Rotam");
+            if (User.Route.Count == 0) Para(sp, "Rota boş. Bir binaya sağ tıklayıp \"Rotaya ekle\" de ya da haritada boş bir yere sağ tıklayıp durak ekle. Duraklar sırayla numaralanır ve sarı çizgiyle birleşir.", 0);
+            else
+            {
+                Card(sp, User.Route.Select((r, i) => ((string)null, $"{i + 1}. {r.Label}", (string)null, (Action)(() => mapView.Goto(r.X, r.Y)))));
+                Buttons(sp,
+                    ("Son durağı çıkar", false, () => { User.Route.RemoveAt(User.Route.Count - 1); User.Save(); }),
+                    ("Rotayı ters çevir", false, () => { User.Route.Reverse(); User.Save(); }),
+                    ("Rotayı temizle", false, () => { User.Route.Clear(); User.Save(); }));
+            }
+            Header(sp, User.Notes.Count > 0 ? $"Notlarım ({User.Notes.Count})" : "Notlarım");
+            if (User.Notes.Count == 0) Para(sp, "Haritada bir yere sağ tıklayıp \"Buraya not ekle\" de (ör. \"buradan kaç\", \"kasa kodu\"). Notlar kaydedilir; sağ tıklayıp düzenleyebilir ya da silebilirsin.", 0);
+            else Card(sp, User.Notes.Select(n => ((string)null, string.IsNullOrWhiteSpace(n.Text) ? "(boş not)" : n.Text, (string)null, (Action)(() => mapView.Goto(n.X, n.Y)))));
             Para(sp, "Fareyle sürükleyerek kaydır, tekerlekle yakınlaştır. Bir binaya ya da noktaya tıklayınca ayrıntısı burada açılır. Yukarıdaki düğmelerle katmanları aç/kapa; 927 arama noktası (kasa, dolap, vitrin, şarj noktası…) varsayılan olarak kapalıdır.");
             Header(sp, "Bölgeler");
             Card(sp, w.Map.Districts.Select(d => ((string)null, d.name, (string)null, (Action)(() => mapView.CenterOn(d.x, d.y, 0.6)))));
@@ -843,6 +1008,8 @@ namespace RobRunTurkce
         {
             Hero(sp, null, p.Name, p.En, null, null, p.KindName, WikiMap.Glyph(p), WikiMap.GroupColor.TryGetValue(p.Group ?? "", out var gc) ? gc : "#8E8E93");
             if (p.Special != null) sp.Children.Add(new WrapPanel { Margin = new Thickness(0, 12, 0, 0), Children = { Pill(p.Special, "#FF9F0A") } });
+            bool inRoute = User.Route.Any(r => r.PoiId == p.Id);
+            Buttons(sp, (inRoute ? "Rotadan çıkar" : "Rotaya ekle", !inRoute, () => { if (inRoute) User.Route.RemoveAll(r => r.PoiId == p.Id); else User.Route.Add(new RouteStop { PoiId = p.Id, Label = p.Name, X = p.X, Y = p.Y }); User.Save(); }));
             Para(sp, p.Desc, 14);
             var inside = w.Map.Objects.Where(o => o.Building == p.Name).ToList();
             if (inside.Count > 0 && mainContext)
@@ -983,35 +1150,76 @@ namespace RobRunTurkce
             }
         }
 
-        void RefreshTree(WNode select)
+        /// <summary>Kişisel veri değişti (plan, işaretler, notlar): açık görünümü kaydırma yerini koruyarak yeniler.</summary>
+        void OnUserChanged()
         {
-            rows = BuildRows(SecTree);
-            ApplyFilter(select);
+            if (navCounts.TryGetValue(SecPlan, out var pc)) pc.Text = plan.Count.ToString("N0", Tr);
+            double off = detail.VerticalOffset;
+            if (section == SecMap) { mapView?.RefreshUser(); if (!(list.SelectedItem is WRow)) ShowMapSummary(); }
+            else if (section == SecTree || section == SecPlan)
+            {
+                var sel = (list.SelectedItem as WRow)?.Tag;
+                rows = BuildRows(section);
+                var q = search.Text.Trim().ToLower(Tr);
+                var shown = rows.Where(r => (chip == null || ChipOf(r) == chip) && (q.Length == 0 || r.Search.Contains(q))).ToList();
+                list.ItemsSource = shown;
+                list.SelectedItem = shown.FirstOrDefault(r => SameTag(r.Tag, sel)) ?? shown.FirstOrDefault();
+            }
+            else if (list.SelectedItem is WRow r) ShowDetail(r.Tag);
+            detail.UpdateLayout(); detail.ScrollToVerticalOffset(off);
+            if (peek.Visibility == Visibility.Visible && peekCurrent != null)
+            {
+                double po = peekBody.VerticalOffset;
+                peekBody.Content = BuildDetail(peekCurrent, Peek, main: true);
+                peekBody.UpdateLayout(); peekBody.ScrollToVerticalOffset(po);
+            }
+        }
+        /// <summary>Plan değişti: kaydet (kaydetme Changed olayıyla görünümleri yeniler).</summary>
+        void RefreshTree(WNode select) => User.Save();
+
+        static string Mark(UserData u, string id) => u.Done.Contains(id) ? "✔ " : u.Plan.Contains(id) ? "○ " : "";
+
+        List<WNode> PlanNodes() => plan.Select(id => w.NodeById.TryGetValue(id, out var n) ? n : null).Where(n => n != null)
+            .OrderBy(n => w.Branches.IndexOf(n.Branch)).ThenBy(n => n.Stage).ToList();
+
+        /// <summary>Plan özeti: düğüm sayısı, açılanlar, kalan bedel ve ilerleme çubuğu.</summary>
+        void PlanStats(StackPanel card, List<WNode> nodes)
+        {
+            var left = nodes.Where(n => !User.Done.Contains(n.Id)).ToList();
+            int done = nodes.Count - left.Count;
+            var stats = new UniformGrid { Columns = 4, Margin = new Thickness(0, 8, 0, 0) };
+            foreach (var (label, value) in new[] { ("Açılan", $"{done}/{nodes.Count}"), ("Kalan araştırma", Wiki.Money(left.Sum(n => n.Research ?? 0))), ("Kalan alış", Wiki.Money(left.Sum(n => n.Price ?? 0))), ("Toplam", Wiki.Money(nodes.Sum(n => (n.Research ?? 0) + (n.Price ?? 0)))) })
+            {
+                var s = new StackPanel { Margin = new Thickness(0, 0, 8, 0) };
+                s.Children.Add(new Viewbox { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left, Height = 22, Child = new TextBlock { Text = value, FontFamily = Display, FontSize = 17, FontWeight = FontWeights.Bold, Foreground = Label } });
+                s.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = Secondary });
+                stats.Children.Add(s);
+            }
+            card.Children.Add(stats);
+            var track = new Grid { Height = 6, Margin = new Thickness(0, 10, 0, 2) };
+            track.Children.Add(new Border { CornerRadius = new CornerRadius(3), Background = B("#3A3A3C") });
+            double frac = nodes.Count == 0 ? 0 : (double)done / nodes.Count;
+            track.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.0001, frac), GridUnitType.Star) });
+            track.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.0001, 1 - frac), GridUnitType.Star) });
+            var fill = new Border { CornerRadius = new CornerRadius(3), Background = B("#30D158") };
+            SetColumnSpan(track.Children[0], 2);
+            track.Children.Add(fill);
+            card.Children.Add(track);
         }
 
         void PlanCard(StackPanel sp, WNode current)
         {
-            var nodes = plan.Select(id => w.NodeById.TryGetValue(id, out var n) ? n : null).Where(n => n != null).ToList();
+            var nodes = PlanNodes();
             var card = new StackPanel();
             card.Children.Add(new TextBlock { Text = "SEVKİYAT PLANLAYICISI", FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = B("#64D2FF") });
             if (nodes.Count == 0)
-                card.Children.Add(new TextBlock { Text = "Açmak istediğin düğümleri plana ekle; araştırma ve satın alma bedellerini toplar. Gereken önceki düğümler kendiliğinden eklenir.", FontSize = 12.5, Foreground = B("#C7C7CC"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 0) });
-            else
-            {
-                var stats = new UniformGrid { Columns = 4, Margin = new Thickness(0, 8, 0, 0) };
-                foreach (var (label, value) in new[] { ("Düğüm", nodes.Count.ToString()), ("Araştırma", Wiki.Money(nodes.Sum(n => n.Research ?? 0))), ("Satın alma", Wiki.Money(nodes.Sum(n => n.Price ?? 0))), ("En uzun", nodes.Max(n => n.Years) > 0 ? nodes.Max(n => n.Years) + " yıl" : "—") })
-                {
-                    var s = new StackPanel { Margin = new Thickness(0, 0, 8, 0) };
-                    s.Children.Add(new Viewbox { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left, Height = 22, Child = new TextBlock { Text = value, FontFamily = Display, FontSize = 17, FontWeight = FontWeights.Bold, Foreground = Label } });
-                    s.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = Secondary });
-                    stats.Children.Add(s);
-                }
-                card.Children.Add(stats);
-            }
+                card.Children.Add(new TextBlock { Text = "Açmak istediğin düğümleri plana ekle; gereken önceki düğümler kendiliğinden eklenir. Açtıklarını işaretle, kalan bedeli görürsün. Plan kaydedilir, program kapanınca kaybolmaz.", FontSize = 12.5, Foreground = B("#C7C7CC"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 0) });
+            else PlanStats(card, nodes);
             var row = new StackPanel();
             Buttons(row,
                 (w.Guides?.StarterPack.Count > 0 ? "Başlangıç paketi" : null, false, () => { foreach (var id in w.Guides.StarterPack) AddWithPrereqs(id); RefreshTree(current); }),
-                (nodes.Count > 0 ? "Planı temizle" : null, false, () => { plan.Clear(); RefreshTree(current); }));
+                (nodes.Count > 0 && mainContext ? "Planım" : null, false, () => Show(SecPlan, PlanSummary.Instance)),
+                (nodes.Count > 0 ? "Ayrı pencerede" : null, false, () => PipWindow.Open(this, PlanSummary.Instance)));
             card.Children.Add(row);
             sp.Children.Add(new Border { Background = B("#1A0A84FF"), BorderBrush = B("#550A84FF"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = new Thickness(16, 12, 16, 4), Margin = new Thickness(0, 0, 0, 18), Child = card });
         }
@@ -1022,16 +1230,113 @@ namespace RobRunTurkce
             Hero(sp, n.Icon, n.Name, n.En, n.Rarity, n.Color, n.Branch.Name + " · " + n.Stage + ". aşama");
             Para(sp, n.Desc, 16);
             Tiles(sp, new[] { ("Araştırma", n.Research > 0 ? Wiki.Money(n.Research) : "Ücretsiz"), ("Satın alma", Wiki.Money(n.Price)), ("Süre", n.Years > 0 ? n.Years + " yıl" : null), ("Aşama", n.Stage.ToString()) });
-            bool inPlan = plan.Contains(n.Id);
-            if (mainContext) Buttons(sp,
-                (inPlan ? "Plandan çıkar" : "Plana ekle (gerekenlerle)", !inPlan, () => { if (inPlan) plan.Remove(n.Id); else AddWithPrereqs(n.Id); RefreshTree(n); }),
-                (n.ItemId != null ? "Eşya sayfası" : null, false, () => OpenItem(n.ItemId)?.Invoke()));
+            bool inPlan = plan.Contains(n.Id), isDone = User.Done.Contains(n.Id);
+            Buttons(sp,
+                (inPlan ? "Plandan çıkar" : "Plana ekle (gerekenlerle)", !inPlan, () => { if (inPlan) { plan.Remove(n.Id); User.Done.Remove(n.Id); } else AddWithPrereqs(n.Id); RefreshTree(n); }),
+                (isDone ? "Açılmadı olarak işaretle" : "Açıldı olarak işaretle", false, () => { if (isDone) User.Done.Remove(n.Id); else { User.Done.Add(n.Id); plan.Add(n.Id); } RefreshTree(n); }),
+                (n.ItemId != null ? "Eşya ayrıntısı" : null, false, () => OpenItem(n.ItemId)?.Invoke()));
             var req = n.Requires.Select(id => w.NodeById.TryGetValue(id, out var r) ? r : null).Where(r => r != null).ToList();
             Header(sp, "Önce açılması gerekenler");
             if (req.Count == 0) Card(sp, new[] { ((string)null, "Yok, dalın başlangıç düğümü", (string)null, (Action)null) });
-            else Card(sp, req.Select(r => (r.Icon, (plan.Contains(r.Id) ? "✓ " : "") + r.Name, r.Stage + ". aşama", OpenNode(r.Id))));
+            else Card(sp, req.Select(r => (r.Icon, Mark(User, r.Id) + r.Name, r.Stage + ". aşama", OpenNode(r.Id))));
             var kids = n.Unlocks.Select(id => w.NodeById.TryGetValue(id, out var r) ? r : null).Where(r => r != null).ToList();
-            if (kids.Count > 0) { Header(sp, "Bunu açınca"); Card(sp, kids.Select(r => (r.Icon, (plan.Contains(r.Id) ? "✓ " : "") + r.Name, r.Stage + ". aşama", OpenNode(r.Id)))); }
+            if (kids.Count > 0) { Header(sp, "Bunu açınca"); Card(sp, kids.Select(r => (r.Icon, Mark(User, r.Id) + r.Name, r.Stage + ". aşama", OpenNode(r.Id)))); }
+        }
+
+        /// <summary>İşaretlenebilir liste kartı: soldaki daireye tıklayınca işaretlenir; metne tıklayınca (varsa) ayrıntı açılır.</summary>
+        void CheckCard(StackPanel sp, IEnumerable<(string icon, string text, string value, bool on, Action<bool> toggle, Action open)> items)
+        {
+            var arr = items.ToList();
+            if (arr.Count == 0) return;
+            var stack = new StackPanel();
+            for (int i = 0; i < arr.Count; i++)
+            {
+                var (icon, text, value, on, toggle, open) = arr[i];
+                var g = new Grid();
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                g.ColumnDefinitions.Add(new ColumnDefinition());
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var check = new Border
+                {
+                    Width = 22, Height = 22, CornerRadius = new CornerRadius(11), Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center,
+                    Background = on ? B("#30D158") : Brushes.Transparent, BorderBrush = on ? B("#30D158") : B("#6C6C70"), BorderThickness = new Thickness(1.5),
+                    Child = new TextBlock { Text = on ? "" : "", FontFamily = Icons, FontSize = 11, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+                    ToolTip = on ? "İşareti kaldır" : "İşaretle",
+                };
+                var t = toggle; var state = on;
+                check.MouseLeftButtonUp += (s, e) => { e.Handled = true; t(!state); };
+                g.Children.Add(check);
+                if (icon != null)
+                {
+                    var ic = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(7), Background = B("#3A3A3C"), Margin = new Thickness(10, 0, 0, 0), Child = new Image { Source = Wiki.Icon(icon), Margin = new Thickness(2) } };
+                    Grid.SetColumn(ic, 1); g.Children.Add(ic);
+                }
+                var tb = open == null ? Rich(text, 13.5, on ? Secondary : Label, 19) : new TextBlock { Text = text, FontSize = 13.5, LineHeight = 19, Foreground = on ? Secondary : Label, TextWrapping = TextWrapping.Wrap };
+                if (on) tb.TextDecorations = TextDecorations.Strikethrough;
+                tb.Margin = new Thickness(10, 0, 8, 0); tb.VerticalAlignment = VerticalAlignment.Center;
+                Grid.SetColumn(tb, 2); g.Children.Add(tb);
+                if (value != null || open != null)
+                {
+                    var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                    if (value != null) right.Children.Add(new TextBlock { Text = value, FontSize = 12.5, Foreground = Secondary });
+                    if (open != null) right.Children.Add(new TextBlock { Text = "", FontFamily = Icons, FontSize = 11, Foreground = B("#6C6C70"), Margin = new Thickness(8, 1, 0, 0) });
+                    Grid.SetColumn(right, 3); g.Children.Add(right);
+                }
+                var row = new Border { Padding = new Thickness(12, 9, 14, 9), Background = Brushes.Transparent, Child = g };
+                if (open != null)
+                {
+                    row.Cursor = Cursors.Hand;
+                    row.MouseEnter += (s, e) => row.Background = B("#14FFFFFF");
+                    row.MouseLeave += (s, e) => row.Background = Brushes.Transparent;
+                    var o = open; row.MouseLeftButtonUp += (s, e) => o();
+                }
+                stack.Children.Add(row);
+                if (i < arr.Count - 1) stack.Children.Add(new Rectangle { Height = 1, Fill = Sep, Margin = new Thickness(44, 0, 0, 0) });
+            }
+            sp.Children.Add(new Border { Background = Surface, CornerRadius = new CornerRadius(12), Child = stack, ClipToBounds = true });
+        }
+
+        /// <summary>Planım: dallara göre planlanan düğümler (açılanlar işaretlenir), ilerleme ve soygun hazırlıkları.</summary>
+        void PlanView(StackPanel sp)
+        {
+            Hero(sp, null, "Planım", null, null, null, "Larry'nin sevkiyatları", "", "#30D158");
+            var nodes = PlanNodes();
+            if (nodes.Count == 0)
+            {
+                Para(sp, "Planın boş. Larry'nin Sevkiyatları'nda bir düğümü açıp \"Plana ekle\" de; gereken önceki düğümler de eklenir. Hazır başlangıç paketiyle de başlayabilirsin.", 16);
+                Buttons(sp, (w.Guides?.StarterPack.Count > 0 ? "Başlangıç paketini ekle" : null, true, () => { foreach (var id in w.Guides.StarterPack) AddWithPrereqs(id); User.Save(); }));
+            }
+            else
+            {
+                var card = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
+                PlanStats(card, nodes);
+                sp.Children.Add(card);
+                // önce açılabilecekler: gerekenlerinin hepsi açılmış ama kendisi açılmamış
+                var ready = nodes.Where(n => !User.Done.Contains(n.Id) && n.Requires.All(r => User.Done.Contains(r) || !w.NodeById.ContainsKey(r))).ToList();
+                if (ready.Count > 0)
+                {
+                    Header(sp, "Şimdi açabileceklerin");
+                    CheckCard(sp, ready.Select(n => (n.Icon, n.Name, Wiki.Money((n.Research ?? 0) + (n.Price ?? 0)), false, (Action<bool>)(v => { if (v) User.Done.Add(n.Id); else User.Done.Remove(n.Id); User.Save(); }), Ref(n))));
+                }
+                foreach (var g in nodes.GroupBy(n => n.Branch))
+                {
+                    Header(sp, $"{g.Key.Name} ({g.Count(n => User.Done.Contains(n.Id))}/{g.Count()})");
+                    CheckCard(sp, g.Select(n => (n.Icon, n.Name + " · " + n.Stage + ". aşama", Wiki.Money((n.Research ?? 0) + (n.Price ?? 0)), User.Done.Contains(n.Id),
+                        (Action<bool>)(v => { if (v) User.Done.Add(n.Id); else User.Done.Remove(n.Id); User.Save(); }), Ref(n))));
+                }
+                Buttons(sp,
+                    (mainContext ? "Ayrı pencerede aç" : null, false, () => PipWindow.Open(this, PlanSummary.Instance)),
+                    ("Açılanları plandan çıkar", false, () => { foreach (var id in User.Done.ToList()) plan.Remove(id); User.Save(); }),
+                    ("Planı temizle", false, () => { plan.Clear(); User.Done.Clear(); User.Save(); }));
+            }
+            // soygun hazırlıkları
+            var preps = w.Robberies.Select(r => (r, need: PrepItems(r))).Where(x => x.need.Count > 0 && User.Prep.TryGetValue(x.r.Id, out var s) && s.Count > 0).ToList();
+            if (preps.Count > 0)
+            {
+                Header(sp, "Soygun hazırlıklarım");
+                Card(sp, preps.Select(x => (x.r.Icon, x.r.Name, $"{x.need.Count(i => User.IsPrepared(x.r.Id, i.Id))}/{x.need.Count} hazır", Ref(x.r))));
+            }
         }
 
         void BarterDetail(StackPanel sp, WBarter b)
@@ -1139,26 +1444,34 @@ namespace RobRunTurkce
         }
 
         /// <summary>Soyguna hazırlık: aletlerde ve adımlarda geçen eşyalar ve her birinin nasıl elde edildiği.</summary>
+        /// <summary>Soygun için gereken eşyalar (aletler, adımlar ve özette geçenler).</summary>
+        List<WItem> PrepItems(WRobbery r) => r.Tools.Concat(r.Steps).Concat(new[] { r.Summary })
+            .SelectMany(t => Links.Find(t)).Select(m => m.target).OfType<WItem>()
+            .Where(i => i.Id != "cash_1").Distinct().ToList();
+
         void PrepList(StackPanel sp, WRobbery r)
         {
-            var needed = r.Tools.Concat(r.Steps).Concat(new[] { r.Summary })
-                .SelectMany(t => Links.Find(t)).Select(m => m.target).OfType<WItem>()
-                .Where(i => i.Id != "cash_1").Distinct().ToList();
+            var needed = PrepItems(r);
             if (needed.Count == 0) return;
-            Header(sp, $"Soyguna hazırlık ({needed.Count})");
-            var rows = new List<(string, string, string, Action)>();
+            var rows = new List<(string, string, string, bool, Action<bool>, Action)>();
+            Action<bool> Toggle(string id) => v => User.SetPrepared(r.Id, id, v);
             foreach (var it in needed)
             {
-                rows.Add((it.Icon, it.Name + " — " + (Recipe(it) ?? "elde etme bilgisi yok"), null, null));
+                rows.Add((it.Icon, it.Name + " — " + (Recipe(it) ?? "elde etme bilgisi yok"), null, User.IsPrepared(r.Id, it.Id), Toggle(it.Id), null));
                 // tarifteki eşyalar da takasla geliyorsa bir alt seviyesini de göster (ör. Matkap → Aksiyon Kamerası)
                 var barter = w.Barters.FirstOrDefault(b => b.ItemId == it.Id);
                 if (barter != null)
                     foreach (var inp in barter.Inputs.Where(x => x.ItemId != null && x.ItemId != "cash_1" && !needed.Any(n => n.Id == x.ItemId)))
                         if (w.ItemById.TryGetValue(inp.ItemId, out var sub) && Recipe(sub) is string rc)
-                            rows.Add((sub.Icon, "↳ " + sub.Name + " — " + rc, null, null));
+                            rows.Add((sub.Icon, "↳ " + sub.Name + " — " + rc, null, User.IsPrepared(r.Id, sub.Id), Toggle(sub.Id), null));
             }
-            Card(sp, rows);
-            if (mainContext) Buttons(sp, ("Hazırlık listesini ayrı pencerede aç", false, () => PipWindow.Open(this, r)));
+            int ready = rows.Count(x => x.Item4);
+            Header(sp, $"Soyguna hazırlık · {ready}/{rows.Count} hazır");
+            CheckCard(sp, rows);
+            var btns = new List<(string, bool, Action)>();
+            if (mainContext) btns.Add(("Hazırlık listesini ayrı pencerede aç", false, () => PipWindow.Open(this, r)));
+            if (ready > 0) btns.Add(("Listeyi sıfırla", false, () => { User.Prep.Remove(r.Id); User.Save(); }));
+            if (btns.Count > 0) Buttons(sp, btns.ToArray());
         }
 
         void ArticleDetail(StackPanel sp, WArticle a)
@@ -1201,6 +1514,7 @@ namespace RobRunTurkce
                         Buttons(sp, (s.ActionLabel ?? "Başlangıç paketini seç", true, () =>
                         {
                             foreach (var id in w.Guides.StarterPack) AddWithPrereqs(id);
+                            User.Save();
                             var first = w.Guides.StarterPack.Select(id => w.NodeById.TryGetValue(id, out var n) ? n : null).FirstOrDefault(n => n != null);
                             Show(SecTree, first);
                         }));

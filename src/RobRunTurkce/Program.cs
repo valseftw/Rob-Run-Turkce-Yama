@@ -33,6 +33,7 @@ namespace RobRunTurkce
 
             CacheRootOverride = Arg(args, "--onbellek-klasoru");
             Updater.SourceOverride = Arg(args, "--guncelleme-kaynagi");
+            Updater.DataRootOverride = Arg(args, "--veri-klasoru");
             if (args.Any(a => CliCommands.Contains(a)))
                 return RunCli(args);
 
@@ -131,7 +132,8 @@ namespace RobRunTurkce
   --baslat                      Başlatıcı: güncellemeleri denetler, gerekirse Türkçeyi yeniden uygular, ROB RUN'ı açar
   --guncelleme-denetle          GitHub'daki son sürümü denetler (imzayı doğrular), hiçbir şey değiştirmez
   --guncelleme-kaynagi <adres>  Test için: GitHub API yerine bu ""latest release"" JSON adresini kullanır
-  --deneme                      Test için: --baslat oyunu (Steam'i) açmaz");
+  --deneme                      Test için: --baslat oyunu (Steam'i) açmaz
+  --veri-klasoru <klasör>       Test için: ayarlar, plan ve notlar bu klasöre yazılır");
                 return 0;
             }
             if (args.Contains("--guncelleme-denetle"))

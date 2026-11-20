@@ -46,7 +46,7 @@ namespace RobRunTurkce
         public static void OpenMap(WikiView owner, WMap m, Wiki wiki)
         {
             foreach (var p in open) if (p.map != null) { p.Activate(); return; }
-            var w = new PipWindow(owner, new WikiMap(m, wiki)) { Width = 640, Height = 560 };
+            var w = new PipWindow(owner, new WikiMap(m, wiki) { User = owner.User }) { Width = 640, Height = 560 };
             w.heading.Text = "LOOTY BAY HARİTASI";
             w.Show();
         }
@@ -110,7 +110,16 @@ namespace RobRunTurkce
             KeyDown += (s, e) => { if (e.Key == Key.Escape) Close(); };
             Loaded += (s, e) => BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
             open.Add(this);
-            Closed += (s, e) => open.Remove(this);
+            Action refresh = () => Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (map != null) map.RefreshUser();
+                if (current == null) return;
+                double off = body.VerticalOffset;
+                body.Content = owner.BuildDetail(current, o => Navigate(o));
+                body.UpdateLayout(); body.ScrollToVerticalOffset(off);
+            }));
+            owner.User.Changed += refresh;
+            Closed += (s, e) => { open.Remove(this); owner.User.Changed -= refresh; };
         }
 
         Border Btn(string glyph, string tip, Action click)

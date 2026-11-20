@@ -52,6 +52,15 @@ Yama kuruluysa uygulama kurulum adımlarını atlayıp **doğrudan Rehber'le aç
 - **Her şey birbirine bağlıdır:** Metinlerde geçen eşya, soygun, bina ve cihaz adları tıklanabilir. Tıklayınca solda bir **önizleme penceresi** açılır; buradan ayrıntıya bakıp Geri ile dönebilir ya da kaydın sayfasına geçebilirsiniz.
 - **Ne işe yarar, nerede kullanılır:** Her eşya sayfası, o eşyanın geçtiği soygunları, takasları, harita noktalarını ve rehber adımlarını listeler. Kademeli eşyalarda (ör. Şifre Çözücü yeşil/mor/altın) diğer kademeler de gösterilir.
 - **Soyguna hazırlık:** Her soygunda gereken eşyalar ve her birinin nasıl elde edildiği listelenir (ör. Matkap ← 1× Aksiyon Kamerası + 2× USB Hackleme Aleti + $50.000).
+- **Her yerde arama (Ctrl+K):** Eşya, silah, sevkiyat, takas, bina, soygun, harita noktası, cihaz ve rehber yazılarında tek kutudan arama. Ok tuşları ve Enter ile gezinilir.
+- **Planım:** Larry'nin sevkiyatlarından plan kur. Gereken önceki düğümler kendiliğinden eklenir. Açtıklarını işaretle; ilerleme çubuğunu, kalan araştırma ve alış bedelini ve "şimdi açabileceklerin" listesini gör. Plan ayrı pencerede (oyunun üstünde) açılıp işaretlenebilir.
+- **Soygun hazırlık listesi:** Her soygunun gereken eşyalarını topladıkça işaretle ("3/7 hazır").
+- **Hesaplayıcılar:**
+  - **Tefeci:** Çantandaki eşyaların aranma seviyesine göre satış değeri.
+  - **Kaçak kargo kârı:** Tur ve saat başına kâr; yuva geliştirmelerinin kendini kaç saatte ödediği.
+  - **Bina soygunu getirisi:** Çanta yuvasına göre tahmini değer.
+- **Harita notları ve rota:** Haritaya sağ tıklayıp not ekle (renkli işaret) ya da binaları rotaya ekle. Duraklar numaralanır ve çizgiyle birleşir.
+- **Kişisel veriler:** Plan, işaretler, notlar ve rota bilgisayarında saklanır (`%LOCALAPPDATA%\RobRunTurkceYama\kullanici.json`); program kapanınca kaybolmaz, hiçbir yere gönderilmez.
 - **Ayrı pencere (PiP):** Bir kayıt, hazırlık listesi ya da harita, oyunun üstünde kalan küçük bir pencerede açılabilir. Pencere sabitlenebilir ve saydamlaştırılabilir. Oyunun üstünde görünmesi için oyunda **kenarlıksız pencere** modu seçili olmalıdır.
 - **Tam ekran:** Başlık çubuğundaki düğme ya da **F11**. Pencere kenarından boyutlandırılabilir.
 - Eşya adları, Türkçe yamadaki adlarla birebir aynıdır; oyunda ne görüyorsanız Rehber'de de o yazar.

@@ -43,7 +43,9 @@ namespace RobRunTurkce
         /// <summary>Geliştirme/test: GitHub API yerine kullanılacak "latest release" JSON adresi (--guncelleme-kaynagi).</summary>
         public static string SourceOverride;
 
-        public static string DataRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RobRunTurkceYama");
+        /// <summary>Test/ekran görüntüsü: kişisel verilerin yazılacağı klasör (--veri-klasoru).</summary>
+        public static string DataRootOverride;
+        public static string DataRoot => DataRootOverride ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RobRunTurkceYama");
         public static string CachedTranslation => Path.Combine(DataRoot, "ceviri", "tr.json");
 
         /// <summary>release.json'daki GitHub bağlantısından "sahip/depo" (yoksa null: güncelleme kapalı).</summary>

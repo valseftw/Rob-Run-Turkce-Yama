@@ -15,7 +15,7 @@ namespace RobRunTurkce
     /// Looty Bay etkileşimli haritası: tekerlekle yakınlaştırma (imlecin olduğu yere), sürükleyerek kaydırma,
     /// bina/nokta işaretleri (her yakınlıkta aynı boyutta), arama noktası katmanları, arama ve eşya filtresi.
     /// </summary>
-    public sealed class WikiMap : Grid
+    public sealed partial class WikiMap : Grid
     {
         public event Action<object> Selected; // WPoi ya da WObj
         /// <summary>Sağda haritanın üstünde duran kartın genişliği: ortalama ve sığdırma bu alanı hesaba katmaz.</summary>
@@ -152,6 +152,7 @@ namespace RobRunTurkce
             // varsayılan: tüm bina/nokta grupları açık, arama noktası katmanları kapalı (927 nokta kalabalık yapar)
             foreach (var g in map.Groups) visibleGroups.Add(g.Id);
             Apply();
+            InitUser();
         }
 
         static ToolTip Tip(string title, string sub) => new ToolTip
@@ -194,6 +195,7 @@ namespace RobRunTurkce
             scale.ScaleX = scale.ScaleY = s;
             // ekrandaki işaret boyutu: uzaktayken %60, yakınlaştıkça %100'e çıkar, sonra sabit kalır
             inv.ScaleX = inv.ScaleY = (0.6 + 0.4 * Math.Min(1.0, s / 0.8)) / s;
+            UpdateUserScale(s);
         }
 
         void ZoomAt(Point at, double factor)

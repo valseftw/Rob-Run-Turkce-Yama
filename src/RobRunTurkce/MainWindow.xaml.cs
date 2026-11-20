@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -62,7 +63,11 @@ namespace RobRunTurkce
 
             MinButton.Click += (s, e) => WindowState = WindowState.Minimized;
             FullButton.Click += (s, e) => ToggleFullScreen();
-            PreviewKeyDown += (s, e) => { if (e.Key == Key.F11) { ToggleFullScreen(); e.Handled = true; } };
+            PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key == Key.F11) { ToggleFullScreen(); e.Handled = true; }
+                else if (e.Key == Key.K && Keyboard.Modifiers == ModifierKeys.Control && !busy) { ModeWiki.IsChecked = true; wikiView?.OpenSearch(); e.Handled = true; }
+            };
             CloseButton.Click += (s, e) => Close();
             if (rel.Discord != null) SidebarDiscord.Click += (s, e) => OpenUrl(rel.Discord);
             else SidebarDiscord.Visibility = Visibility.Collapsed;
@@ -968,6 +973,32 @@ namespace RobRunTurkce
                 var penc = new PngBitmapEncoder(); penc.Frames.Add(BitmapFrame.Create(pb));
                 using (var f = File.Create(System.IO.Path.Combine(dir, "pip.png"))) penc.Save(f);
                 pip.Close();
+            }
+            // kalıcı plan, hazırlık işaretleri, hesaplayıcılar, arama, rota ve notlar (yalnızca --veri-klasoru ile, gerçek veriye yazmamak için)
+            if (Updater.DataRootOverride != null)
+            {
+                var u = w.wikiView.User;
+                u.Plan.Clear(); u.Done.Clear(); u.Notes.Clear(); u.Route.Clear(); u.Prep.Clear();
+                w.wikiView.PlanStarterPack();
+                foreach (var id in u.Plan.Take(3).ToList()) u.Done.Add(id);
+                if (vault != null && drill != null) u.SetPrepared(vault.Id, drill.Id, true);
+                u.Save();
+                for (int k = 0; k < 10; k++) { DoEvents(); Thread.Sleep(15); }
+                w.wikiView.Show(10, PlanSummary.Instance); Shot("planim.png");
+                if (vault != null) { w.wikiView.Show(5, vault); w.wikiView.ScrollDetail(240); Shot("hazirlik-isaretli.png"); }
+                w.wikiView.DemoCalc();
+                w.wikiView.Show(11, CalcKind.Fence); Shot("hesap-tefeci.png");
+                w.wikiView.Show(11, CalcKind.Cargo); Shot("hesap-kargo.png");
+                w.wikiView.Show(11, CalcKind.Heist); Shot("hesap-soygun.png");
+                if (w.wikiData.Map != null)
+                {
+                    foreach (var pid in new[] { "cottage-no-3", "fence" }) { var poi = w.wikiData.Map.Pois.Find(p => p.Id == pid || p.Kind == pid); if (poi != null) u.Route.Add(new RouteStop { PoiId = poi.Id, Label = poi.Name, X = poi.X, Y = poi.Y }); }
+                    var c3 = w.wikiData.Map.Pois.Find(p => p.Id == "cottage-no-3");
+                    if (c3 != null) u.Notes.Add(new MapNote { X = c3.X + 140, Y = c3.Y - 90, Text = "Önce sigortayı kes", Color = "#FFD60A" });
+                    u.Save();
+                    w.wikiView.Show(6); for (int k = 0; k < 30; k++) { DoEvents(); Thread.Sleep(15); } Shot("harita-rota.png");
+                }
+                w.wikiView.SearchFor("matkap"); for (int k = 0; k < 15; k++) { DoEvents(); Thread.Sleep(15); } Shot("arama.png"); w.wikiView.CloseSearch();
             }
             w.ModePatch.IsChecked = true;
             w.Alert("Türkçe yama kaldırılsın mı?", "Orijinal oyun dosyaları yedekten geri yüklenecek.", "Vazgeç", "Kaldır", () => { }, danger: true); Shot("uyari.png");
