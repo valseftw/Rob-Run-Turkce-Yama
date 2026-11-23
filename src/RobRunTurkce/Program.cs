@@ -193,7 +193,7 @@ namespace RobRunTurkce
             {
                 if (args.Contains("--kur") && !args.Contains("--kabul"))
                     throw new InvalidOperationException("Arayüzsüz kurulum için riskleri kabul ettiğinizi --kabul ile belirtin.");
-                if (args.Contains("--kur")) installer.Install(tr, Version + " / çeviri " + tr.Version);
+                if (args.Contains("--kur")) installer.Install(tr, Version + " / çeviri " + tr.Version, args.Contains("--zorla"));
                 else installer.Uninstall();
                 return 0;
             }

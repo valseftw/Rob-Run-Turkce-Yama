@@ -9,7 +9,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>RobRunTurkceYama</AssemblyName>
     <RootNamespace>RobRunTurkce</RootNamespace>
-    <Version>1.4.0</Version>
+    <Version>1.4.1</Version>
     <Product>ROB RUN Türkçe Yama (resmi değildir)</Product>
     <Description>ROB RUN için topluluk yapımı, açık kaynak Türkçe çeviri yükleyicisi ve başlatıcısı. Yalnızca GitHub üzerinden imzalı güncelleme alır.</Description>
     <Copyright>MIT Lisansı - ROB RUN Türkiye topluluğu</Copyright>

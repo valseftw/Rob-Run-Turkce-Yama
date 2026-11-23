@@ -326,9 +326,9 @@ namespace RobRunTurkce
 
         // ------------------------------------------------------------------ kur / kaldır
 
-        public void Install(Translations tr, string version)
+        public void Install(Translations tr, string version, bool force = false)
         {
-            if (GameRunning()) throw new InvalidOperationException("Oyun açık. Önce ROB RUN'ı tamamen kapatın.");
+            if (!force && GameRunning()) throw new InvalidOperationException("Oyun açık. Önce ROB RUN'ı tamamen kapatın.");
             string bdir = GameLocator.BundleDir(Game);
             foreach (var t in Targets)
                 if (!File.Exists(Path.Combine(bdir, t))) throw new FileNotFoundException("Beklenen oyun dosyası bulunamadı (oyun yapısı değişmiş olabilir): " + t);
